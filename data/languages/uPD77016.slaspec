@@ -1,0 +1,2190 @@
+# sleigh specification file for GameCube DSP
+
+# Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
+@define BLOOP_ONE_AFTER
+# Directly mutate the sr register instead of a set of fake registers
+# The fake registers provide better decompilation
+#@define USE_REAL_SR_REGISTER
+# Simplify decompilation of the left+right shift instructions
+@define SIMPLIFY_SHIFTS
+# Assume CR is always set to 0x00ff - makes LRS and SRS disassemble better
+# This assumption is violated for Zelda uCode.
+@define SIMPLIFY_CR
+# Apply sign-extension to writes to $ac0.m and $ac1.m when the processor says it should happen
+# When disabled, 16-bit mode is always assumed.
+@define USE_40_BIT_SIGN_EXTENSION
+# Always apply sign-extension (needs the above to be not be defined)
+# This gets rid of a check on SR_40_MODE, which results in cleaner code,
+# but the results will be incorrect.
+#@define ALWAYS_USE_40_BIT_SIGN_EXTENSION
+# Apply saturation to reads from $ac0.m and $ac1.m when the processor says it should happen
+# When disabled, 16-bit mode is always assumed. Enabling results in much messier code.
+#@define USE_40_BIT_SATURATION
+
+define endian=big;
+define alignment=2;
+
+define space inst     type=ram_space      size=2 wordsize=2;
+define space data     type=ram_space      size=2 wordsize=2 default;
+define space register type=register_space size=1 wordsize=2;
+
+define register offset=0x00 size=2 [ ar0 ar1 ar2 ar3 ]; # Addressing registers
+define register offset=0x08 size=2 [ ix0 ix1 ix2 ix3 ]; # Indexing registers
+define register offset=0x10 size=2 [ wr0 wr1 wr2 wr3 ]; # Wrapping registers
+define register offset=0x18 size=2 [ st0 st1 st2 st3 ]; # Stack-related registers
+#define register offset=0x20 size=2 [ ac0.h ac1.h ]; # 40-bit accumulators
+define register offset=0x24 size=2 [ cr sr ];
+define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
+#define register offset=0x30 size=2 [ ax0.l ax1.l ax0.h ax1.h ]; # 32-bit accumulators
+#define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
+
+# Fake versions of the accumulator registers to make emulating them reasonable
+define register offset=0x80 size=2 [ ac0.h ac0.m ac0.l ];
+define register offset=0x81 size=1 [ ac0.hreal ];
+define register offset=0x81 size=5 [ acc0 ];
+define register offset=0x81 size=3 [ acs0 ]; # Short/mid accumulator, 24 bits
+define register offset=0x90 size=2 [ ac1.h ac1.m ac1.l ];
+define register offset=0x91 size=1 [ ac1.hreal ];
+define register offset=0x91 size=5 [ acc1 ];
+define register offset=0x91 size=3 [ acs1 ]; # Short/mid accumulator, 24 bits
+define register offset=0xA0 size=2 [ ax0.h ax0.l ];
+define register offset=0xA0 size=4 [ ax0 ];
+define register offset=0xB0 size=2 [ ax1.h ax1.l ];
+define register offset=0xB0 size=4 [ ax1 ];
+define register offset=0xC1 size=5 [ prod ];
+
+# Fake register for extra-fake purposes; hardware uses some of the stacks for this
+define register offset=0xF0 size=8 [ loopcontext ];
+
+# Magic to make loops work
+define context loopcontext
+	loopskipaddr = (0,15) noflow
+	hasloopcheck = (16,16) noflow
+	loopstackdepth = (17,18)
+	loopjumpbackaddr = (32,47) noflow
+	hasloopjumpback = (48,48) noflow
+;
+
+# Loop stack for the current loop counter. We don't currently have st3 directly reflect this value,
+# because doing so would be a bit difficult.
+define register offset=0xD0 size=2 [ st3_0 st3_1 st3_2 st3_3 ];
+# Note: The outermost loop increments loopstackdepth and then uses CurSt3, so index 1 is the first.
+# Although we could reset loopstackdepth for the loop instruction, it needs to be changed for
+# the next instruction for flowing to work, and that instruction is also loopcheck, so it needs to
+# read the stack. Thus, we have this off-by-1 indexing.
+CurSt3: is loopstackdepth=1 { export st3_0; }
+CurSt3: is loopstackdepth=2 { export st3_1; }
+CurSt3: is loopstackdepth=3 { export st3_2; }
+CurSt3: is loopstackdepth=0 { export st3_3; }
+
+# Regular and hacky implementation of status register
+@ifdef USE_REAL_SR_REGISTER
+@define SR_CARRY            "sr[0,1]"
+@define SR_OVERFLOW         "sr[1,1]"
+@define SR_ARITH_ZERO       "sr[2,1]"
+@define SR_SIGN             "sr[3,1]"
+@define SR_OVER_32          "sr[4,1]"
+@define SR_TOP2BITS         "sr[5,1]"
+@define SR_LOGIC_ZERO       "sr[6,1]"
+@define SR_OVERFLOW_STICKY  "sr[7,1]"
+@define SR_100              "sr[8,1]"
+@define SR_INT_ENABLE       "sr[9,1]"
+@define SR_400              "sr[10,1]"
+@define SR_EXT_INT_ENABLE   "sr[11,1]"
+@define SR_1000             "sr[12,1]"
+@define SR_MUL_MODIFY       "sr[13,1]"
+@define SR_40_MODE          "sr[14,1]"
+@define SR_MUL_UNSIGNED     "sr[15,1]"
+@else
+define space hack_register type=ram_space size=1;
+define hack_register offset=0 size=1 [ SR_CARRY_ SR_OVERFLOW_ SR_ARITH_ZERO_ SR_SIGN_ SR_OVER_32_ SR_TOP2BITS_ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABLE_ SR_400_ SR_EXT_INT_ENABLE_ SR_1000_ SR_MUL_MODIFY_ SR_40_MODE_ SR_MUL_UNSIGNED_ ];
+# Note: forcing to only a single bit.  Also, we need to use macros in both cases for consistent syntax.
+@define SR_CARRY "SR_CARRY_[0,1]"
+@define SR_OVERFLOW "SR_OVERFLOW_[0,1]"
+@define SR_ARITH_ZERO "SR_ARITH_ZERO_[0,1]"
+@define SR_SIGN "SR_SIGN_[0,1]"
+@define SR_OVER_32 "SR_OVER_32_[0,1]"
+@define SR_TOP2BITS "SR_TOP2BITS_[0,1]"
+@define SR_LOGIC_ZERO "SR_LOGIC_ZERO_[0,1]"
+@define SR_OVERFLOW_STICKY "SR_OVERFLOW_STICKY_[0,1]"
+@define SR_100 "SR_100_[0,1]"
+@define SR_INT_ENABLE "SR_INT_ENABLE_[0,1]"
+@define SR_400 "SR_400_[0,1]"
+@define SR_EXT_INT_ENABLE "SR_EXT_INT_ENABLE_[0,1]"
+@define SR_1000 "SR_1000_[0,1]"
+@define SR_MUL_MODIFY "SR_MUL_MODIFY_[0,1]"
+@define SR_40_MODE "SR_40_MODE_[0,1]"
+@define SR_MUL_UNSIGNED "SR_MUL_UNSIGNED_[0,1]"
+@endif
+
+define token opbyte (16)
+	op0_4  = (0, 3)
+	op3_8  = (3, 7)
+	op4_8  = (4, 7)
+	op5_8  = (5, 7)
+	op6_8  = (6, 7)
+	op7_9  = (7, 8)
+	op8_16 = (8, 15)
+	op9_16 = (9, 15)
+	op10_16 = (10, 15)
+	op11_16 = (11, 15)
+	op12_16 = (12, 15)
+
+	op5 = (4, 4)
+
+	_ar0_2 = (0, 1)
+	_ix0_2 = (0, 1)
+
+	_ix2_4 = (2, 3)
+	op2_4 = (2, 3)
+
+	_reg0_5 = (0, 4)
+
+	_ar5_7 = (5, 6)
+	_ix5_7 = (5, 6)
+
+	_reg5_8 = (5, 7)
+	_reg5_10 = (5, 9)
+
+	cc0_4 = (0, 3)
+
+	_acm8 = (8, 8)
+	_acf8 = (8, 8)
+	_acs8 = (8, 8)
+	_ac8_11 = (8, 10)
+	_ac8_10 = (8, 9)
+	_ach8display = (8, 8)
+	_ach8 = (8, 8)
+
+	srbit = (0, 2)
+	imm6 = (0, 5)
+
+	imm8 = (0, 7)
+	simm8 = (0, 7) signed
+;
+
+# Note that if *[const]:2 is not used to use the value as a pointer in the constant address space, things break and the value will be treated as 0.
+# i.e. with just { export imm8; } setting a register to Imm8 apepars to set it to 0, while setting it to imm8 works fine.
+# There is a warning for this, though it's not obvious: "Table 'Imm8' exports size 0".
+Imm6: "#"^imm6 is imm6 { export *[const]:2 imm6; }
+# See comment by LSR
+Imm6Right: "#"^rightshiftvalue is imm6=0 [ rightshiftvalue = 0; ] { export *[const]:2 rightshiftvalue; }
+Imm6Right: "#"^rightshiftvalue is imm6 [ rightshiftvalue = (64 - imm6); ] { export *[const]:2 rightshiftvalue; }
+
+Imm8: "#"^imm8 is imm8 { export *[const]:2 imm8; }
+SImm8: "#"^simm8 is simm8 { export *[const]:2 simm8; }
+Mem8FF: "@"^addr is imm8 [ addr = 0xff00 | imm8; ] { export *:2 addr; }
+@ifdef SIMPLIFY_CR
+Mem8CR: Mem8FF is Mem8FF { export Mem8FF; }
+@else
+Mem8CR: "@((cr << 8) | "^imm8^")" is imm8 { addr:2 = (((cr & 0xff) << 8) | imm8); export *:2 addr; }
+@endif
+
+define token data16 (16)
+	imm16  = (0,15)
+	simm16 = (0,15) signed
+;
+
+Addr16: imm16 is imm16 { export *[inst]:1 imm16; }
+# Formatting convenience: add 1 to the address for BLOOP/BLOOPI, to point to the address after the loop
+# instead of the one in the loop.  This puts a label after the loop instead of inside of the loop.
+# (This is mainly needed because Ghidra generates the label off of the operand, not the actual jump location.
+# Even with this, BLOOP generates a _read_ reference instead of a jump reference, for some reason)
+# Note that this is also used for context variable purposes, even when BLOOP_ONE_AFTER is not defined.
+Addr16After: dest is imm16 [ dest = imm16 + 1; ] { export *[inst]:1 dest; }
+Imm16: "#"^imm16 is imm16 { export *[const]:2 imm16; }
+SImm16: "#"^simm16 is simm16 { export *[const]:2 simm16; }
+Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
+
+attach variables [ _reg0_5 _reg5_10 ] [
+	ar0 ar1 ar2 ar3
+	ix0 ix1 ix2 ix3
+	wr0 wr1 wr2 wr3
+	st0 st1 st2 st3
+	ac0.h ac1.h
+	cr sr
+	prod.l prod.m1 prod.h prod.m2
+	ax0.l ax1.l ax0.h ax1.h
+	ac0.l ac1.l ac0.m ac1.m
+];
+
+macro SIGN_EXTEND_AC0M() {
+@ifdef USE_40_BIT_SIGN_EXTENSION
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	if (!$(SR_40_MODE)) goto <done>;
+@endif
+	acc0 = sext(ac0.m) << 16;
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	<done>
+@endif
+@endif
+}
+macro SIGN_EXTEND_AC1M() {
+@ifdef USE_40_BIT_SIGN_EXTENSION
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	if (!$(SR_40_MODE)) goto <done>;
+@endif
+	acc1 = sext(ac1.m) << 16;
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	<done>
+@endif
+@endif
+}
+
+# According to 7.9. P-code Macros:
+# Parameters are passed by reference, so the value of varnodes passed into the macro can be changed.
+# Currently, there is no syntax for returning a value from the macro,
+# except by writing to a parameter or global symbol.
+macro GET_SATURATED_AC0M(dest) {
+@ifdef USE_40_BIT_SATURATION
+	# If the 40-bit mode is disabled, no saturation is needed.
+	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
+	# If the accumulator is the same as its s32 version, no saturation is needed.
+	if (acc0 == sext(ac0:4)) goto <no_saturation_needed>;
+	# Saturation is needed; check if it needs to be be positive or negative.
+	if (acc0 s< 0) goto <negative_saturation>;
+	# Positive
+	dest = 0x7fff;
+	goto <done>;
+	<negative_saturation>
+	dest = 0x8000;
+	goto <done>;
+	<no_saturation_needed>
+@endif
+	dest = ac0.m;
+	goto <done>;
+	<done>
+}
+macro GET_SATURATED_AC1M(dest) {
+@ifdef USE_40_BIT_SATURATION
+	# If the 40-bit mode is disabled, no saturation is needed.
+	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
+	# If the accumulator is the same as its s32 version, no saturation is needed.
+	if (acc1 == sext(ac1:4)) goto <no_saturation_needed>;
+	# Saturation is needed; check if it needs to be be positive or negative.
+	if (acc1 s< 0) goto <negative_saturation>;
+	# Positive
+	dest = 0x7fff;
+	goto <done>;
+	<negative_saturation>
+	dest = 0x8000;
+	goto <done>;
+	<no_saturation_needed>
+@endif
+	dest = ac1.m;
+	goto <done>;
+	<done>
+}
+
+sign_extend_reg0_5_after: is _reg0_5 {}
+sign_extend_reg0_5_after: is _reg0_5=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg0_5_after: is _reg0_5=0x11 { ac1.h = sext(ac1.hreal); }
+sign_extend_reg0_5_after: is _reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg0_5_after: is _reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
+
+saturated_reg0_5: is _reg0_5 { export _reg0_5; }
+saturated_reg0_5: is _reg0_5=0x10 { local tmp:2 = sext(ac0.hreal); export tmp; }
+saturated_reg0_5: is _reg0_5=0x11 { local tmp:2 = sext(ac1.hreal); export tmp; }
+saturated_reg0_5: is _reg0_5=0x1E { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_reg0_5: is _reg0_5=0x1F { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+sign_extend_reg5_10_after: is _reg5_10 {}
+sign_extend_reg5_10_after: is _reg5_10=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg5_10_after: is _reg5_10=0x11 { ac1.h = sext(ac1.hreal); }
+sign_extend_reg5_10_after: is _reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg5_10_after: is _reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
+
+attach variables [ _ar0_2 _ar5_7 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ _ix0_2 _ix2_4 _ix5_7 ] [ ix0 ix1 ix2 ix3 ];
+
+attach variables [ _reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
+
+attach variables [ _acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
+attach variables [ _acf8 ] [ acc0 acc1 ]; # Full 40-bit accumulators
+attach variables [ _acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
+attach variables [ _ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ _ach8display ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
+attach variables [ _ach8 ] [ ac0.hreal ac1.hreal ]; # Top of 40-bit accumulators, as 8-bit registers
+
+sign_extend_acm8_after: is _acm8=0 { SIGN_EXTEND_AC0M(); }
+sign_extend_acm8_after: is _acm8=1 { SIGN_EXTEND_AC1M(); }
+
+sign_extend_ac8_11_after: is _ac8_11 {}
+sign_extend_ac8_11_after: is _ac8_11=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_ac8_11_after: is _ac8_11=7 { SIGN_EXTEND_AC1M(); }
+
+saturated_ac8_10: is _ac8_10 { export _ac8_10; }
+saturated_ac8_10: is _ac8_10=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_ac8_10: is _ac8_10=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+@ifdef USE_REAL_SR_REGISTER
+# Offset by 6
+attach names srbit [ SR_LOGIC_ZERO SR_OVERFLOW_STICKY SR_100 SR_INT_ENABLE SR_400 SR_EXT_INT_ENABLE SR_1000 SR_MUL_MODIFY ];
+@else
+attach variables srbit [ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABLE_ SR_400_ SR_EXT_INT_ENABLE_ SR_1000_ SR_MUL_MODIFY_ ];
+@endif
+
+# GCDSP also supports extension instructions, where a 1-byte arithmetic
+# instruction is followed by a 1-byte extension instruction.
+# This is written as e.g. 46 51 ADDR'L acc0, ax1.h : ax0.h, @ar1 where
+# 46 corresponds to ADDR acc0, ax1.h and 51 corresponds to 'L ax0.h, @ar1.
+# SLEIGH lets us have two separate tokens which can form two tables that
+# are merged later, which could be used for implementing this.
+#
+# Unfortunately, the two-separate-bytes model is not accurate, as arithmetic
+# instructions with an opcode starting with 3 actually use 9 bytes, leaving
+# the remaining 7 for extension instructions.  Thus, a single merged token
+# is used instead.
+define token axopbyte (16)
+	# Opbyte for arithmetic instructions
+	aop0_8 = (8,  15) # (0, 7)
+	aop4_8 = (12, 15) # (4, 7)
+	aop5_8 = (13, 15) # (5, 7)
+	aop2_4 = (10, 11) # (2, 3)
+	aop1   = (9,  9)  # (1, 1)
+	aop3   = (11, 11) # (3, 3)
+	aop0_3 = (8,  10) # (0, 2)
+	aop1_4 = (9,  11) # (1, 3)
+	aop1_3 = (9,  10) # (1, 2)
+
+	_aacl0 = (8, 8) # (0, 0) # Low part of 40-bit accumulator
+
+	_aacm0 = (8, 8) # (0, 0) # Middle of 40-bit accumulator
+	_aacm1 = (9, 9) # (1, 1) # Middle of 40-bit accumulator
+	_aacm0_other = (8, 8) # (0, 0) # Middle of 40-bit accumulator, backwards
+	_aacm4 = (12, 12) # (4, 4) # Middle of 40-bit accumulator
+
+	_aacf0 = (8, 8) # (0, 0) # Full 40 bits of an accumulator
+	_aacf0_other = (8, 8) # (0, 0) # Full 40 bits of an accumulator, backwards
+	_aacf3 = (11, 11) # (3, 3) # Full 40 bits of an accumulator
+
+	_aacs0 = (8, 8) # (0, 0) # 24 bits of a 40-bit accumulator
+
+	_aaxh0 = (8,  8)  # (0, 0) # High bits of 32-bit accumulator
+	_aaxh1 = (9,  9)  # (1, 1) # High bits of 32-bit accumulator
+	_aaxh3 = (11, 11) # (3, 3) # High bits of 32-bit accumulator
+	_aaxh4 = (12, 12) # (4, 4) # High bits of 32-bit accumulator
+	_aaxl0 = (8,  8)  # Low bits of 32-bit accumulator
+	_aaxl1 = (9,  9)  # Low bits of 32-bit accumulator
+	_aaxl3 = (11, 11) # Low bits of 32-bit accumulator
+	_aaxf1 = (9,  9)  # Full 32 bits of an accumulator
+	_aax1_2 = (9, 10) # (1, 2) # 32-bit accumulator
+
+	_aax0lh1 = (9,  9)  # (1, 1) # Either ax0.l or ax0.h
+	_aax0lh4 = (12, 12) # (4, 4) # Either ax0.l or ax0.h
+	_aax1lh0 = (8,  8)  # (0, 0) # Either ax1.l or ax1.h
+	_aax1lh3 = (11, 11) # (3, 3) # Either ax1.l or ax1.h
+
+	# Bit that belongs in xop but is used by arithmetic ops where aop4_8=0b0011
+	axbit = (7, 7)
+
+	# Opbyte for extension instructions
+	xop0_2 = (0, 1)
+	xop0_7 = (0, 6)
+	xop4_7 = (4, 6)
+	xop1   = (1, 1)
+	xop2   = (2, 2)
+	xop5   = (5, 5)
+	xop6   = (6, 6)
+	xop2_4 = (2, 3)
+
+	_xar0_2 = (0, 1) # Addressing register
+	_xix0_2 = (0, 1) # Index register
+	_xac3_6 = (3, 5) # Either accumulator
+	_xax2_4 = (2, 3) # 32-bit accumulator
+	_xax4_6 = (4, 5) # 32-bit accumulator
+	_xac0_2 = (0, 1) # 40-bit accumulator
+	_xac3_5 = (3, 4) # 40-bit accumulator
+	_xacm0  = (0, 0) # Either ac0.m or ac1.m
+
+	_xax0lh5 = (5, 5) # Either ax0.l or ax0.h
+	_xax1lh4 = (4, 4) # Either ax1.l or ax1.h
+
+	_xax4  = (4, 4) # Either ax0 or ax1
+	_xaxl4 = (4, 4) # Either ax0.l or ax1.l
+	_xaxh4 = (4, 4) # Either ax0.h or ax1.h
+
+	_xar5 = (5, 5) # Either ar0 or ar1; ar2 and ar3 are not selectable
+	_xix5 = (5, 5) # Either ix0 or ix1
+;
+
+# Variables for arithmetic opcodes
+attach variables [ _aacl0 ] [ ac0.l ac1.l ];
+attach variables [ _aacm0 _aacm1 _aacm4 ] [ ac0.m ac1.m ];
+attach variables [ _aacm0_other ] [ ac1.m ac0.m ];
+attach variables [ _aacf0 _aacf3 ] [ acc0 acc1 ];
+attach variables [ _aacf0_other ] [ acc1 acc0 ];
+attach variables [ _aacs0 ] [ acs0 acs1 ];
+attach variables [ _aaxh0 _aaxh1 _aaxh3 _aaxh4 ] [ ax0.h ax1.h ];
+attach variables [ _aaxl0 _aaxl1 _aaxl3 ] [ ax0.l ax1.l ];
+attach variables [ _aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _aaxf1 ] [ ax0 ax1 ];
+
+attach variables [ _aax0lh1 _aax0lh4 ] [ ax0.l ax0.h ];
+attach variables [ _aax1lh0 _aax1lh3 ] [ ax1.l ax1.h ];
+
+# Variables for extension opcodes
+attach variables [ _xar0_2 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ _xix0_2 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ _xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _xax2_4 _xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _xac0_2 _xac3_5 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ _xacm0 ] [ ac0.m ac1.m ];
+
+sign_extend_xac3_6_after: is _xac3_6 {}
+sign_extend_xac3_6_after: is _xac3_6=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_xac3_6_after: is _xac3_6=7 { SIGN_EXTEND_AC1M(); }
+
+saturated_xac0_2: is _xac0_2 { export _xac0_2; }
+saturated_xac0_2: is _xac0_2=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac0_2: is _xac0_2=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+saturated_xac3_5: is _xac3_5 { export _xac3_5; }
+saturated_xac3_5: is _xac3_5=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac3_5: is _xac3_5=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+saturated_xacm0: is _xacm0=0 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xacm0: is _xacm0=1 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+attach variables [ _xax0lh5 ] [ ax0.l ax0.h ];
+attach variables [ _xax1lh4 ] [ ax1.l ax1.h ];
+
+attach variables [ _xax4  ] [ ax0   ax1   ];
+attach variables [ _xaxl4 ] [ ax0.l ax1.l ];
+attach variables [ _xaxh4 ] [ ax0.h ax1.h ];
+
+attach variables [ _xar5 ] [ ar0 ar1 ];
+attach variables [ _xix5 ] [ ix0 ix1 ];
+
+# These are all so that a $ can be prepended to the register name, and should be used in
+# instructions instead of the underscore-prefixed ones.
+ar0_2:       "$"^_ar0_2       is _ar0_2       { export _ar0_2;       }
+ix0_2:       "$"^_ix0_2       is _ix0_2       { export _ix0_2;       }
+ix2_4:       "$"^_ix2_4       is _ix2_4       { export _ix2_4;       }
+reg0_5:      "$"^_reg0_5      is _reg0_5      { export _reg0_5;      }
+ar5_7:       "$"^_ar5_7       is _ar5_7       { export _ar5_7;       }
+ix5_7:       "$"^_ix5_7       is _ix5_7       { export _ix5_7;       }
+reg5_8:      "$"^_reg5_8      is _reg5_8      { export _reg5_8;      }
+reg5_10:     "$"^_reg5_10     is _reg5_10     { export _reg5_10;     }
+acm8:        "$"^_acm8        is _acm8        { export _acm8;        }
+acf8:        "$"^_acf8        is _acf8        { export _acf8;        }
+acs8:        "$"^_acs8        is _acs8        { export _acs8;        }
+ac8_11:      "$"^_ac8_11      is _ac8_11      { export _ac8_11;      }
+ac8_10:      "$"^_ac8_10      is _ac8_10      { export _ac8_10;      }
+ach8display: "$"^_ach8display is _ach8display { export _ach8display; }
+ach8:        "$"^_ach8        is _ach8        { export _ach8;        }
+aacl0:       "$"^_aacl0       is _aacl0       { export _aacl0;       }
+aacm0:       "$"^_aacm0       is _aacm0       { export _aacm0;       }
+aacm1:       "$"^_aacm1       is _aacm1       { export _aacm1;       }
+aacm0_other: "$"^_aacm0_other is _aacm0_other { export _aacm0_other; }
+aacm4:       "$"^_aacm4       is _aacm4       { export _aacm4;       }
+aacf0:       "$"^_aacf0       is _aacf0       { export _aacf0;       }
+aacf0_other: "$"^_aacf0_other is _aacf0_other { export _aacf0_other; }
+aacf3:       "$"^_aacf3       is _aacf3       { export _aacf3;       }
+aacs0:       "$"^_aacs0       is _aacs0       { export _aacs0;       }
+aaxh0:       "$"^_aaxh0       is _aaxh0       { export _aaxh0;       }
+aaxh1:       "$"^_aaxh1       is _aaxh1       { export _aaxh1;       }
+aaxh3:       "$"^_aaxh3       is _aaxh3       { export _aaxh3;       }
+aaxh4:       "$"^_aaxh4       is _aaxh4       { export _aaxh4;       }
+aaxl0:       "$"^_aaxl0       is _aaxl0       { export _aaxl0;       }
+aaxl1:       "$"^_aaxl1       is _aaxl1       { export _aaxl1;       }
+aaxl3:       "$"^_aaxl3       is _aaxl3       { export _aaxl3;       }
+aaxf1:       "$"^_aaxf1       is _aaxf1       { export _aaxf1;       }
+aax1_2:      "$"^_aax1_2      is _aax1_2      { export _aax1_2;      }
+aax0lh1:     "$"^_aax0lh1     is _aax0lh1     { export _aax0lh1;     }
+aax0lh4:     "$"^_aax0lh4     is _aax0lh4     { export _aax0lh4;     }
+aax1lh0:     "$"^_aax1lh0     is _aax1lh0     { export _aax1lh0;     }
+aax1lh3:     "$"^_aax1lh3     is _aax1lh3     { export _aax1lh3;     }
+xar0_2:      "$"^_xar0_2      is _xar0_2      { export _xar0_2;      }
+xix0_2:      "$"^_xix0_2      is _xix0_2      { export _xix0_2;      }
+xac3_6:      "$"^_xac3_6      is _xac3_6      { export _xac3_6;      }
+xax2_4:      "$"^_xax2_4      is _xax2_4      { export _xax2_4;      }
+xax4_6:      "$"^_xax4_6      is _xax4_6      { export _xax4_6;      }
+xac0_2:      "$"^_xac0_2      is _xac0_2      { export _xac0_2;      }
+xac3_5:      "$"^_xac3_5      is _xac3_5      { export _xac3_5;      }
+xacm0:       "$"^_xacm0       is _xacm0       { export _xacm0;       }
+xax0lh5:     "$"^_xax0lh5     is _xax0lh5     { export _xax0lh5;     }
+xax1lh4:     "$"^_xax1lh4     is _xax1lh4     { export _xax1lh4;     }
+xax4:        "$"^_xax4        is _xax4        { export _xax4;        }
+xaxl4:       "$"^_xaxl4       is _xaxl4       { export _xaxl4;       }
+xaxh4:       "$"^_xaxh4       is _xaxh4       { export _xaxh4;       }
+xar5:        "$"^_xar5        is _xar5        { export _xar5;        }
+xix5:        "$"^_xix5        is _xix5        { export _xix5;        }
+
+macro FLAGS16X(result, carry, overflow, over_s32) {
+	$(SR_CARRY) = carry;  # Carry
+	$(SR_OVERFLOW) = overflow;  # Overflow
+	$(SR_ARITH_ZERO) = (result == 0);  # Zero
+	$(SR_SIGN) = (result s< 0);  # Sign
+	$(SR_OVER_32) = over_s32;  # Above s32
+	$(SR_TOP2BITS) = ((result & 0xc000) == 0) || ((result & 0xc000) == 0xc000);  # Top 2 bits equal
+	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | $(SR_OVERFLOW);  # Sticky overflow
+}
+
+macro FLAGS16(result, result_40) {
+	FLAGS16X(result, 0, 0, (result_40 != sext(result_40:4)));
+}
+
+macro FLAGS40X(result, carry, overflow) {
+	# Flags for a 40-bit operation (like Dolphin's UpdateSR64)
+	$(SR_CARRY) = carry;  # Carry
+	$(SR_OVERFLOW) = overflow;  # Overflow
+	$(SR_ARITH_ZERO) = (result == 0);  # Zero
+	$(SR_SIGN) = (result s< 0);  # Sign
+	$(SR_OVER_32) = (result != sext(result:4));  # Above s32
+	$(SR_TOP2BITS) = ((result & 0xc0000000) == 0) || ((result & 0xc0000000) == 0xc0000000);  # Top 2 bits equal
+	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | $(SR_OVERFLOW);  # Sticky overflow
+}
+
+macro FLAGS40(result) {
+	FLAGS40X(result, 0, 0);
+}
+
+macro FLAGS_ADD40(a, b) {
+	# Flags for a 40-bit add (like Dolphin's UpdateSR64Add)
+	# Carry uses an unsigned comparison to match Dolphin's isCarrySubtract.
+	# Comparing Dolphin's isOverflow in DSPIntCCUtil.h and Ghidra's OpBehaviorIntScarry.java,
+	# scarry seems to match our desired behavior here.  Note that this is the same for add and subtract
+	FLAGS40X(a + b, (a > (a + b)), scarry(a, b));
+}
+
+macro FLAGS_SUB40(a, b) {
+	# Flags for a 40-bit subtract (like Dolphin's UpdateSR64Sub)
+	# Carry uses an unsigned comparison to match Dolphin's isCarrySubtract.
+	# Comparing Dolphin's isOverflow in DSPIntCCUtil.h and Ghidra's OpBehaviorIntScarry.java,
+	# scarry seems to match our desired behavior here.  Note that this is the same for add and subtract
+	FLAGS40X(a - b, (a >= (a - b)), scarry(a, -b));
+}
+
+#---------------------------------------------------------------------------------------------------
+# Define regular opcodes and opcode parameters.
+# (These are separated for technical reasons, described at the end of the file.)
+#
+# In this section, bits are numbered like this:
+# 1111 1100 0000 0000
+# 5432 1098 7654 3210
+# (i.e. the most significant bit/leftmost is 15, and the least significant/rightmost bit is 0).
+#---------------------------------------------------------------------------------------------------
+
+# 0000 0000 0000 0000
+with : op0_4=0 & op4_8=0 & op8_16=0 {
+r_opc:"NOP" is epsilon {}
+r_opp:"" is epsilon {}
+}
+
+# 0000 0000 0000 0001 through 0000 0000 0000 0011 are unused (but probably just other forms of NOP)
+
+# 0000 0000 0000 01dd
+with : op2_4=0b01 & op4_8=0 & op8_16=0 {
+r_opc:"DAR" is epsilon {}
+r_opp:ar0_2 is ar0_2 {
+	ar0_2 = ar0_2 - 1;
+}
+}
+
+# 0000 0000 0000 10dd
+with : op2_4=0b10 & op4_8=0 & op8_16=0 {
+r_opc:"IAR" is epsilon {}
+r_opp:ar0_2 is ar0_2 {
+	ar0_2 = ar0_2 + 1;
+}
+}
+
+# 0000 0000 0000 11dd
+with : op2_4=0b11 & op4_8=0b0000 & op8_16=0 {
+r_opc:"SUBARN" is epsilon {}
+r_opp:ar0_2, ix0_2 is ar0_2 & ix0_2 {
+	ar0_2 = ar0_2 - ix0_2;
+}
+}
+
+# 0000 0000 0001 ssdd
+with : op4_8=0b0001 & op8_16=0 {
+r_opc:"ADDARN" is epsilon {}
+r_opp:ar0_2, ix2_4 is ar0_2 & ix2_4 {
+	ar0_2 = ar0_2 + ix2_4;
+}
+}
+
+# HALT is the only instruction in 0000 0000 0010 xxxx
+
+# 0000 0000 0010 0001
+with : op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
+r_opc:"HALT" is epsilon {}
+r_opp:"" is epsilon {
+	goto inst_start; # Infinite loop
+}
+}
+
+# Wrapper for the loop skip address, for use in LOOP and LOOPI for setting loopstackdepth.
+# Note that although "globalset(loopskipaddr, loopstackdepth)" is valid, it behaves incorrectly
+# due to the 2-byte word size (e.g. if inst_start is 0x400, globalset(loopskipaddr) would use
+# address 0x201 instead of address 0x402). Using a wrapper like this avoids the issue, for some
+# reason (perhaps because it's marking it as a pointer?)
+AfterLoopWrapper:tmp is epsilon [ tmp = inst_start + 2; ] { export *[inst]:1 tmp; }
+
+# 0000 0000 010r rrrr
+with : op5_8=0b010 & op8_16=0 {
+r_opc:"LOOP" is epsilon {}
+r_opp:reg0_5 is reg0_5 & saturated_reg0_5 & CurSt3 & AfterLoopWrapper [
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = inst_start + 2;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(AfterLoopWrapper, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurSt3 = saturated_reg0_5;
+}
+}
+
+# 0000 0000 011r rrrr aaaa aaaa aaaa aaaa
+# with blocks don't seem to work for multi-token instructions
+r_opc:"BLOOP" is op5_8=0b011 & op8_16=0; imm16 {}
+@ifndef BLOOP_ONE_AFTER
+r_opp:reg0_5, Addr16 is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0 & CurSt3; Addr16 & Addr16After & imm16
+@else
+r_opp:reg0_5, Addr16After is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0 & CurSt3; Addr16 & Addr16After & imm16
+@endif
+[
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = imm16 + 1;
+	loopjumpbackaddr = inst_start + 2;
+	globalset(Addr16After, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(Addr16, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(Addr16, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurSt3 = saturated_reg0_5;
+}
+
+# 0000 0000 100d dddd iiii iiii iiii iiii
+r_opc:"LRI" is op5_8=0b100 & op8_16=0; imm16 {}
+r_opp:reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0 & sign_extend_reg0_5_after; Imm16 {
+	reg0_5 = Imm16;
+	build sign_extend_reg0_5_after;
+}
+
+# 0000 0000 101x xxxx
+# No instruction with op5_8=0b101 & op8_16=0
+
+# 0000 0000 110d dddd mmmm mmmm mmmm mmmm
+r_opc:"LR" is op5_8=0b110 & op8_16=0; imm16 {}
+r_opp:reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0 & sign_extend_reg0_5_after; Mem16 {
+	reg0_5 = Mem16;
+	build sign_extend_reg0_5_after;
+}
+
+# 0000 0000 111s ssss mmmm mmmm mmmm mmmm
+r_opc:"SR" is op5_8=0b111 & op8_16=0; imm16 {}
+r_opp:Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0 & saturated_reg0_5; Mem16 {
+	Mem16 = saturated_reg0_5;
+}
+
+cc: "GE"  is cc0_4=0b0000 { c:1 = ($(SR_OVERFLOW) == $(SR_SIGN)); export c; }
+cc: "L"   is cc0_4=0b0001 { c:1 = ($(SR_OVERFLOW) != $(SR_SIGN)); export c; }
+cc: "G"   is cc0_4=0b0010 { c:1 = (($(SR_OVERFLOW) == $(SR_SIGN)) && !$(SR_ARITH_ZERO)); export c; }
+cc: "LE"  is cc0_4=0b0011 { c:1 = (($(SR_OVERFLOW) != $(SR_SIGN)) || $(SR_ARITH_ZERO)); export c; }
+cc: "NZ"  is cc0_4=0b0100 { c:1 = !$(SR_ARITH_ZERO); export c; }
+cc: "Z"   is cc0_4=0b0101 { c:1 = $(SR_ARITH_ZERO); export c; }
+cc: "NC"  is cc0_4=0b0110 { c:1 = !$(SR_CARRY); export c; }
+cc: "C"   is cc0_4=0b0111 { c:1 = $(SR_CARRY); export c; }
+cc: "x8"  is cc0_4=0b1000 { c:1 = !$(SR_OVER_32); export c; } # "Below s32"
+cc: "x9"  is cc0_4=0b1001 { c:1 = $(SR_OVER_32); export c; } # "Above s32"
+cc: "xA"  is cc0_4=0b1010 { c:1 = (($(SR_OVER_32) || $(SR_TOP2BITS)) && !$(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "xB"  is cc0_4=0b1011 { c:1 = ((!$(SR_OVER_32) && !$(SR_TOP2BITS)) || $(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "LNZ" is cc0_4=0b1100 { c:1 = !$(SR_LOGIC_ZERO); export c; }
+cc: "LZ"  is cc0_4=0b1101 { c:1 = $(SR_LOGIC_ZERO); export c; }
+cc: "O"   is cc0_4=0b1110 { c:1 = $(SR_OVERFLOW); export c; }
+# The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
+
+# 0000 0010 0111 cccc
+with : op4_8=0b0111 & op8_16=2 {
+r_opc:"IF"^cc is cc {}
+r_opp:"" is cc {
+	if (!cc) goto inst_next;
+	# Use delayslot to merge the next instruction; this makes goto inst_next skip past the merged instruction
+	# (and also automatically marks the affected instruction, for free!)
+	delayslot(1);
+}
+}
+
+# 0000 0010 1001 cccc aaaa aaaa aaaa aaaa
+r_opc:"J"^cc is cc & op4_8=0b1001 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
+	if (!cc) goto inst_next;
+	goto Addr16;
+}
+
+# 0000 0010 1011 cccc aaaa aaaa aaaa aaaa
+r_opc:"CALL"^cc is cc & op4_8=0b1011 & op8_16=2; imm16 {}
+r_opp:Addr16    is cc & op4_8=0b1011 & op8_16=2; Addr16 {
+	st0 = inst_next;
+	if (!cc) goto inst_next;
+	call Addr16;
+}
+
+# 0000 0010 1101 cccc
+with : op4_8=0b1101 & op8_16=2 {
+r_opc:"RET"^cc is cc {}
+r_opp:"" is cc {
+	if (!cc) goto inst_next;
+
+	return [st0];
+}
+}
+
+# 0000 0010 1111 cccc
+with : op4_8=0b1111 & op8_16=2 {
+r_opc:"RTI"^cc is cc {}
+r_opp:"" is cc {
+	if (!cc) goto inst_next;
+
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
+}
+}
+
+# Unconditional variants
+
+# 0000 0010 0111 1111
+# Unconditionally execute the next opcode, presumably... not very useful?  Mark as unimpl so that a warning occurs
+with : cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 {
+r_opc:"IF" is epsilon {}
+r_opp:"" is epsilon unimpl
+}
+
+# 0000 0010 1001 1111 aaaa aaaa aaaa aaaa
+r_opc:"JMP"  is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
+	goto Addr16;
+}
+
+# 0000 0010 1011 1111 aaaa aaaa aaaa aaaa
+r_opc:"CALL" is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
+	st0 = inst_next;
+	call Addr16;
+}
+
+# 0000 0010 1101 1111
+with : cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
+r_opc:"RET" is epsilon {}
+r_opp:"" is epsilon {
+	return [st0];
+}
+}
+
+# 0000 0010 1111 1111
+with : cc0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+r_opc:"RTI" is epsilon {}
+r_opp:"" is epsilon {
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
+}
+}
+
+# 0000 001d 0000 0000 iiii iiii iiii iiii
+r_opc:"ADDI" is op0_4=0 & op4_8=0b0000 & op9_16=1; imm16 {}
+r_opp:acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 {
+	FLAGS_ADD40(acf8, sext(SImm16) << 16); acs8 = acs8 + sext(SImm16);
+}
+
+# 0000 001d 0010 0000 iiii iiii iiii iiii
+r_opc:"XORI" is op0_4=0 & op4_8=0b0010 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 ^ Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 0100 0000 iiii iiii iiii iiii
+r_opc:"ANDI" is op0_4=0 & op4_8=0b0100 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 & Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 0110 0000 iiii iiii iiii iiii
+r_opc:"ORI" is op0_4=0 & op4_8=0b0110 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 | Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 1000 0000 iiii iiii iiii iiii
+r_opc:"CMPI" is op0_4=0 & op4_8=0b1000 & op9_16=1; imm16 {}
+r_opp:acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 {
+	FLAGS_SUB40(acf8, sext(SImm16) << 16);
+}
+
+# 0000 001d 1010 0000 iiii iiii iiii iiii
+r_opc:"ANDF" is op0_4=0 & op4_8=0b1010 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; Imm16 {
+	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == 0);
+}
+
+# 0000 001d 1100 0000 iiii iiii iiii iiii
+r_opc:"ANDCF" is op0_4=0 & op4_8=0b1100 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; Imm16 {
+	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == Imm16);
+}
+
+@ifdef SIMPLIFY_SHIFTS
+define pcodeop twowaylogicalshift;
+define pcodeop twowayarithmeticshift;
+
+macro TwoWayLogicalShift(value, shift) {
+	value = twowaylogicalshift(value, shift);
+	FLAGS40(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	value = twowayarithmeticshift(value, shift);
+	FLAGS40(value);
+}
+@else
+macro TwoWayLogicalShift(value, shift) {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value >> (64 - shift[0,6]);
+
+	<done>
+	FLAGS40(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	# Treated as a signed 7-bit field, like ASL/ASR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value s>> (64 - shift[0,6]);
+
+	<done>
+	FLAGS40(value);
+}
+@endif
+
+# Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
+# These two operate directly on acc0 and ac1.m.
+# 0000 0010 1100 1010
+with : op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
+r_opc:"LSRN" is epsilon {}
+r_opp:"" is epsilon {
+	TwoWayLogicalShift(acc0, ac1.m);
+}
+}
+
+# 0000 0010 1100 1011
+with : op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
+r_opc:"ASRN" is epsilon {}
+r_opp:"" is epsilon {
+	TwoWayArithmeticShift(acc0, ac1.m);
+}
+}
+
+# 0000 001d 0001 00ss
+with : op2_4=0 & op4_8=1 & op9_16=1 {
+r_opc:"ILRR" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
+	acm8 = *[inst]:2 ar0_2;
+	build sign_extend_acm8_after;
+}
+}
+
+# 0000 001d 0001 01ss
+with : op2_4=1 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRD" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
+	acm8 = *[inst]:2 ar0_2;
+	ar0_2 = ar0_2 - 1;
+	build sign_extend_acm8_after;
+}
+}
+
+# 0000 001d 0001 10ss
+with : op2_4=2 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRI" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
+	acm8 = *[inst]:2 ar0_2;
+	ar0_2 = ar0_2 + 1;
+	build sign_extend_acm8_after;
+}
+}
+
+# 0000 001d 0001 11ss
+# ar0_2 and ix0_2 are the same bits in the instruction.  The manual doesn't show ix0_2, but I've included it in the disassembly.
+with : op2_4=3 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRN" is epsilon {}
+r_opp:acm8, "@"^ar0_2, ix0_2 is ar0_2 & acm8 & ix0_2 & sign_extend_acm8_after {
+	acm8 = *[inst]:2 ar0_2;
+	ar0_2 = ar0_2 + ix0_2;
+	build sign_extend_acm8_after;
+}
+}
+
+# 0000 010d iiii iiii
+with : op9_16=0b0000010 {
+r_opc:"ADDIS" is epsilon {}
+r_opp:acf8, SImm8 is SImm8 & acf8 & acs8 {
+	FLAGS_ADD40(acf8, sext(SImm8) << 16);
+	acs8 = acs8 + sext(SImm8);
+}
+}
+
+# 0000 011d iiii iiii
+with : op9_16=0b0000011 {
+r_opc:"CMPIS" is epsilon {}
+r_opp:acf8, SImm8 is SImm8 & acf8 {
+	FLAGS_SUB40(acf8, sext(SImm8) << 16);
+}
+}
+
+# 0000 1ddd iiii iiii
+with : op11_16=0b00001 {
+r_opc:"LRIS" is epsilon {}
+r_opp:ac8_11, SImm8 is SImm8 & ac8_11 & sign_extend_ac8_11_after {
+	ac8_11 = SImm8;
+	build sign_extend_ac8_11_after;
+}
+}
+
+# 0001 0000 iiii iiii
+with : op8_16=0b00010000 {
+r_opc:"LOOPI" is epsilon {}
+r_opp:Imm8 is Imm8 & CurSt3 & AfterLoopWrapper [
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = inst_start + 2;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(AfterLoopWrapper, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurSt3 = Imm8;
+}
+}
+
+# 0001 0001 iiii iiii aaaa aaaa aaaa aaaa
+r_opc:"BLOOPI" is op8_16=0b00010001; imm16 {}
+@ifndef BLOOP_ONE_AFTER
+r_opp:Imm8, Addr16 is Imm8 & op8_16=0b00010001 & CurSt3; Addr16 & Addr16After & imm16
+@else
+r_opp:Imm8, Addr16After is Imm8 & op8_16=0b00010001 & CurSt3; Addr16 & Addr16After & imm16
+@endif
+[
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = imm16 + 1;
+	loopjumpbackaddr = inst_start + 2;
+	globalset(Addr16After, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(Addr16, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(Addr16, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurSt3 = Imm8;
+}
+
+# 0001 0010 xxxx xiii
+# op3_8 is marked as xxxxx in the table but shown as 0s for the instruction itself
+with : op3_8=0 & op8_16=0b00010010 {
+r_opc:"SBCLR" is epsilon {}
+r_opp:srbit is srbit {
+@ifdef USE_REAL_SR_REGISTER
+	sr = sr | 1 << (6 + srbit);
+@else
+	srbit = 1;
+@endif
+}
+}
+
+# 0001 0011 xxxx xiii
+with : op3_8=0 & op8_16=0b00010011 {
+r_opc:"SBSET" is epsilon {}
+r_opp:srbit is srbit {
+@ifdef USE_REAL_SR_REGISTER
+	sr = sr & ~(1 << (6 + srbit));
+@else
+	srbit = 0;
+@endif
+}
+}
+
+# 0001 010r 00ii iiii
+# The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
+# though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
+with : op6_8=0b00 & op9_16=0b0001010 {
+r_opc:"LSL" is Imm6 & acf8 {}
+r_opp:acf8, Imm6 is Imm6 & acf8 {
+	acf8 = acf8 << Imm6;
+	FLAGS40(acf8);
+}
+}
+
+# 0001 010r 01ii iiii
+# To handle right shifts correctly, we subtract 64 and then negate.
+# Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR acc0, #7".
+# Without manual handling, you get "LSR acc0,#0x39" instead.
+# Note that if the immediate value is 0, then a shift of 0 still occurs.  Imm6Right handles this.
+with : op6_8=0b01 & op9_16=0b0001010 {
+r_opc:"LSR" is epsilon {}
+r_opp:acf8, Imm6Right is Imm6Right & acf8 {
+	acf8 = acf8 >> Imm6Right;
+	FLAGS40(acf8);
+}
+}
+
+# 0001 010r 10ii iiii
+with : op6_8=0b10 & op9_16=0b0001010 {
+r_opc:"ASL" is epsilon {}
+r_opp:acf8, Imm6 is Imm6 & acf8 {
+	# This doesn't do anything different, does it?
+	acf8 = acf8 << Imm6;
+	FLAGS40(acf8);
+}
+}
+
+# 0001 010r 11ii iiii
+with : op6_8=0b11 & op9_16=0b0001010 {
+r_opc:"ASR" is epsilon {}
+r_opp:acf8, Imm6Right is Imm6Right & acf8 {
+	acf8 = acf8 s>> Imm6Right;
+	FLAGS40(acf8);
+}
+}
+
+# 0001 0110 mmmm mmmm iiii iiii iiii iiii
+r_opc:"SI" is op8_16=0b00010110; imm16 {}
+r_opp:Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
+	Mem8FF = Imm16;
+}
+
+# 0001 0111 rrr0 cccc
+with : op5=0 & op8_16=0b00010111 {
+r_opc:"JR"^cc is cc {}
+r_opp:reg5_8 is cc & reg5_8 {
+	if (!cc) goto inst_next;
+	goto [reg5_8];
+}
+}
+
+# 0001 0111 rrr1 cccc
+with : op5=1 & op8_16=0b00010111 {
+r_opc:"CALLR"^cc is cc {}
+r_opp:reg5_8 is cc & reg5_8 {
+	if (!cc) goto inst_next;
+	# TODO: Update stack
+	call [reg5_8];
+}
+}
+
+# 0001 0111 rrr0 1111
+with : cc0_4=0b1111 & op5=0 & op8_16=0b00010111 {
+r_opc:"JMPR" is epsilon {}
+r_opp:reg5_8 is reg5_8 {
+	goto [reg5_8];
+}
+}
+
+# 0001 0111 rrr1 1111
+with : cc0_4=0b1111 & op5=1 & op8_16=0b00010111 {
+r_opc:"CALLR" is epsilon {}
+r_opp:reg5_8 is reg5_8 {
+	# TODO: Update stack
+	call [reg5_8];
+}
+}
+
+# 0001 1000 0ssd dddd
+with : op7_9=0b00 & op9_16=0b0001100 {
+r_opc:"LRR" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
+	reg0_5 = *:2 ar5_7;
+	build sign_extend_reg0_5_after;
+}
+}
+
+# 0001 1000 1ssd dddd
+with : op7_9=0b01 & op9_16=0b0001100 {
+r_opc:"LRRD" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 - 1;
+	build sign_extend_reg0_5_after;
+}
+}
+
+# 0001 1001 0ssd dddd
+with : op7_9=0b10 & op9_16=0b0001100 {
+r_opc:"LRRI" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 + 1;
+	build sign_extend_reg0_5_after;
+}
+}
+
+# 0001 1001 1ssd dddd
+with : op7_9=0b11 & op9_16=0b0001100 {
+r_opc:"LRRN" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & ix5_7 & sign_extend_reg0_5_after {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
+	build sign_extend_reg0_5_after;
+}
+}
+
+# 0001 1010 0dds ssss
+with : op7_9=0b00 & op9_16=0b0001101 {
+r_opc:"SRR" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
+}
+}
+
+# 0001 1010 1dds ssss
+with : op7_9=0b01 & op9_16=0b0001101 {
+r_opc:"SRRD" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
+	ar5_7 = ar5_7 - 1;
+}
+}
+
+# 0001 1011 0dds ssss
+with : op7_9=0b10 & op9_16=0b0001101 {
+r_opc:"SRRI" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
+	ar5_7 = ar5_7 + 1;
+}
+}
+
+# 0001 1011 1dds ssss
+with : op7_9=0b11 & op9_16=0b0001101 {
+r_opc:"SRRN" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & ix5_7 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
+}
+}
+
+# 0001 11dd ddds ssss
+with : op10_16=0b000111 {
+r_opc:"MRR" is epsilon {}
+r_opp:reg5_10, reg0_5 is reg0_5 & reg5_10 & sign_extend_reg5_10_after & saturated_reg0_5 {
+	reg5_10 = saturated_reg0_5;
+	build sign_extend_reg5_10_after;
+}
+}
+
+# 0010 0ddd mmmm mmmm
+with : op11_16=0b00100 {
+r_opc:"LRS" is epsilon {}
+r_opp:ac8_11, Mem8CR is ac8_11 & Mem8CR & sign_extend_ac8_11_after {
+	ac8_11 = Mem8CR;
+	build sign_extend_ac8_11_after;
+}
+}
+
+# 0010 100s mmmm mmmm
+with : op9_16=0b0010100 {
+r_opc:"SRSH" is epsilon {}
+r_opp:Mem8CR, ach8display is Mem8CR & ach8display & ach8 {
+	Mem8CR = sext(ach8);
+}
+}
+
+# 0010 101x mmmm mmmm is unused and seems to do nothing
+
+# 0010 11ss mmmm mmmm
+with : op10_16=0b001011 {
+r_opc:"SRS" is epsilon {}
+r_opp:Mem8CR, ac8_10 is Mem8CR & ac8_10 & saturated_ac8_10 {
+	Mem8CR = saturated_ac8_10;
+}
+}
+
+#---------------------------------------------------------------------------------------------------
+# Define arithmetic opcodes and opcode parameters.
+# We define them separately to match the format in the manual
+# (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
+# At first it looks like it would also be possible to have regular arithmetic instructions and
+# extension instructions treated as two single-byte instructions by Ghirda, but in practice that's
+# not possible because when aop4_8=0b0011, the arithmetic opcode is 9 bits and the extension is 7!
+#
+# In this section, bits are numbered like this:
+# 7654 3210 Xxxx xxxx
+# where the X bit (axbit) is only used for aop4_8=0b0011 (3).
+#---------------------------------------------------------------------------------------------------
+
+# 0011 00sd 0xxx xxxx
+with : aop2_4=0 & aop4_8=0b0011 & axbit=0 {
+a_opc:"XORR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
+	aacm0 = aacm0 ^ aaxh1;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 01sd 0xxx xxxx
+with : aop2_4=1 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ANDR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
+	aacm0 = aacm0 & aaxh1;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 10sd 0xxx xxxx
+with : aop2_4=2 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ORR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
+	aacm0 = aacm0 | aaxh1;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 110d 0xxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ANDC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
+	aacm0 = aacm0 & aacm0_other;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 111d 0xxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ORC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
+	aacm0 = aacm0 | aacm0_other;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 000d 1xxx xxxx
+with : aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 {
+a_opc:"XORC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
+	aacm0 = aacm0 ^ aacm0_other;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 001d 1xxx xxxx
+with : aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 {
+a_opc:"NOT" is epsilon {}
+a_opp:aacm0 is aacm0 & aacf0 {
+	aacm0 = ~aacm0;
+	FLAGS16(aacm0, aacf0);
+}
+}
+
+# 0011 01sd 1xxx xxxx
+with : aop2_4=1 & aop4_8=0b0011 & axbit=1 {
+a_opc:"LSRNRX" is epsilon {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 {
+	TwoWayLogicalShift(aacf0, aaxh1[0,6]);
+}
+}
+
+# 0011 10sd 1xxx xxxx
+with : aop2_4=2 & aop4_8=0b0011 & axbit=1 {
+a_opc:"ASRNRX" is epsilon {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 {
+	TwoWayArithmeticShift(aacf0, aaxh1[0,6]);
+}
+}
+
+# 0011 110d 1xxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 {
+a_opc:"LSRNR" is epsilon {}
+a_opp:aacf0, aacm0_other is aacf0 & aacm0_other {
+	TwoWayLogicalShift(aacf0, aacm0_other);
+}
+}
+
+# 0011 111d 1xxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 {
+a_opc:"ASRNR" is epsilon {}
+a_opp:aacf0, aacm0_other is aacf0 & aacm0_other {
+	TwoWayArithmeticShift(aacf0, aacm0_other);
+}
+}
+
+# Remaining arithmetic instructions, where aop4_8 != 0b0011:
+# 0100 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0100 {
+a_opc:"ADDR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
+	FLAGS_ADD40(aacf0, sext(aax1_2));
+	aacf0 = aacf0 + sext(aax1_2);
+}
+}
+
+# 0100 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0100 {
+a_opc:"ADDAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
+	FLAGS_ADD40(aacf0, sext(aaxf1));
+	aacf0 = aacf0 + sext(aaxf1);
+}
+}
+
+# 0100 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0100 {
+a_opc:"ADD" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
+	FLAGS_ADD40(aacf0, aacf0_other);
+	aacf0 = aacf0 + aacf0_other;
+}
+}
+
+# 0100 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0100 {
+a_opc:"ADDP" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	FLAGS_ADD40(aacf0, prod);
+	aacf0 = aacf0 + prod;
+}
+}
+
+# 0101 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0101 {
+a_opc:"SUBR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
+	FLAGS_SUB40(aacf0, sext(aax1_2));
+	aacf0 = aacf0 - sext(aax1_2);
+}
+}
+
+# 0101 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0101 {
+a_opc:"SUBAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
+	FLAGS_SUB40(aacf0, sext(aaxf1));
+	aacf0 = aacf0 - sext(aaxf1);
+}
+}
+
+# 0101 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0101 {
+a_opc:"SUB" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
+	FLAGS_SUB40(aacf0, aacf0_other);
+	aacf0 = aacf0 - aacf0_other;
+}
+}
+
+# 0101 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0101 {
+a_opc:"SUBP" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	FLAGS_SUB40(aacf0, prod);
+	aacf0 = aacf0 - prod;
+}
+}
+
+# 0110 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0110 {
+a_opc:"MOVR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
+	# high bits sign-extended, middle bits based on value, low bits zeroed
+	# TODO: Use aacs0?
+	aacf0 = sext(aax1_2) << 16;
+	FLAGS40(aacf0);
+}
+}
+
+# 0110 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0110 {
+a_opc:"MOVAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
+	aacf0 = sext(aaxf1);
+	FLAGS40(aacf0);
+}
+}
+
+# 0110 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0110 {
+a_opc:"MOV" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
+	aacf0 = aacf0_other;
+	FLAGS40(aacf0);
+}
+}
+
+# 0110 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0110 {
+a_opc:"MOVP" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	aacf0 = prod;
+	FLAGS40(aacf0);
+}
+}
+
+# 0111 00sd xxxx xxxx
+with : aop2_4=0 & aop4_8=0b0111 {
+a_opc:"ADDAXL" is epsilon {}
+a_opp:aacf0, aaxl1 is aacf0 & aaxl1 {
+	FLAGS_ADD40(aacf0, zext(aaxl1));
+	aacf0 = aacf0 + zext(aaxl1);  # Note: unsigned extension
+}
+}
+
+# 0111 010d xxxx xxxx
+with : aop1=0 & aop2_4=1 & aop4_8=0b0111 {
+a_opc:"INCM" is epsilon {}
+a_opp:aacs0 is aacs0 & aacf0 {
+	FLAGS_ADD40(aacf0, 0x10000);
+	aacs0 = aacs0 + 1;
+}
+}
+
+# 0111 011d xxxx xxxx
+with : aop1=1 & aop2_4=1 & aop4_8=0b0111 {
+a_opc:"INC" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	FLAGS_ADD40(aacf0, 1);
+	aacf0 = aacf0 + 1;
+}
+}
+
+# 0111 100d xxxx xxxx
+with : aop1=0 & aop2_4=2 & aop4_8=0b0111 {
+a_opc:"DECM" is epsilon {}
+a_opp:aacs0 is aacs0 & aacf0 {
+	FLAGS_SUB40(aacf0, 0x10000);
+	aacs0 = aacs0 - 1;
+}
+}
+
+# 0111 101d xxxx xxxx
+with : aop1=1 & aop2_4=2 & aop4_8=0b0111 {
+a_opc:"DEC" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	FLAGS_SUB40(aacf0, 1);
+	aacf0 = aacf0 - 1;
+}
+}
+
+# 0111 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0111 {
+a_opc:"NEG" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	FLAGS_SUB40(0, aacf0);
+	aacf0 = -aacf0;
+}
+}
+
+# 0111 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0111 {
+a_opc:"MOVNP" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	aacf0 = -prod;
+	FLAGS40(aacf0);
+}
+}
+
+# 1000 x000 xxxx xxxx
+# A NOP that is used to specify only an extended opcode.  Bit 3 can be either 0 or 1.
+with : aop0_3=0 & aop4_8=0b1000 {
+a_opc:"NX" is epsilon {}
+a_opp:""   is epsilon {}
+}
+
+# 1000 r001 xxxx xxxx
+with : aop0_3=1 & aop4_8=0b1000 {
+a_opc:"CLR" is epsilon {}
+a_opp:aacf3 is aacf3 {
+	aacf3 = 0;
+	FLAGS40(aacf3);
+}
+}
+
+# 1000 0010 xxxx xxxx
+with : aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
+a_opc:"CMP" is epsilon {}
+a_opp:""    is epsilon {
+	FLAGS_SUB40(acc0, acc1);
+}
+}
+
+# 1000 0011 xxxx xxxx
+with : aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {
+a_opc:"MULAXH" is epsilon {}
+a_opp:         is epsilon {
+	prod = zext(ax0.h) * zext(ax0.h);
+}
+}
+
+# 1000 0100 xxxx xxxx
+with : aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
+a_opc:"CLRP" is epsilon {}
+a_opp:""     is epsilon {
+	prod.l  = 0x0000;
+	prod.m1 = 0xfff0;
+	prod.h  = 0x00ff;
+	prod.m2 = 0x0010;
+	prod = 0;
+}
+}
+
+# 1000 0101 xxxx xxxx
+with : aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {
+a_opc:"TSTPROD" is epsilon {}
+a_opp:          is epsilon {
+	FLAGS40(prod);
+}
+}
+
+# 1000 011r xxxx xxxx
+with : aop1_4=0b011 & aop4_8=0b1000 {
+a_opc:"TSTAXH" is epsilon {}
+a_opp:aaxh0 is aaxh0 {
+	FLAGS16X(aaxh0, 0, 0, 0);
+}
+}
+
+# Note: there isn't a gap here; NX (theoretically) has a 1000 1000 form,
+# and CLR $acc1 uses 1000 1001.
+
+# 1000 1010 xxxx xxxx
+with : aop0_8=0b10001010 {
+a_opc:"M2" is epsilon {}
+a_opp:""   is epsilon { $(SR_MUL_MODIFY) = 0; }  # 0 indicates modified behavior here
+}
+
+# 1000 1011 xxxx xxxx
+with : aop0_8=0b10001011 {
+a_opc:"M0" is epsilon {}
+a_opp:""   is epsilon { $(SR_MUL_MODIFY) = 1; }
+}
+
+# 1000 1100 xxxx xxxx
+with : aop0_8=0b10001100 {
+a_opc:"CLR15" is epsilon {}
+a_opp:""      is epsilon { $(SR_MUL_UNSIGNED) = 0; }
+}
+
+# 1000 1101 xxxx xxxx
+with : aop0_8=0b10001101 {
+a_opc:"SET15" is epsilon {}
+a_opp:""      is epsilon { $(SR_MUL_UNSIGNED) = 1; }
+}
+
+# 1000 1110 xxxx xxxx
+with : aop0_8=0b10001110 {
+a_opc:"SET16" is epsilon {}
+a_opp:""      is epsilon { $(SR_40_MODE) = 0; }
+}
+
+# 1000 1111 xxxx xxxx
+with : aop0_8=0b10001111 {
+a_opc:"SET40" is epsilon {}
+a_opp:""      is epsilon { $(SR_40_MODE) = 1; }
+}
+
+# 1001 s000 xxxx xxxx
+# TODO: "$sr.AM bit affects multiply result"
+with : aop0_3=0b000 & aop4_8=0b1001 {
+a_opc:"MUL" is epsilon {}
+a_opp:aaxl3, aaxh3 is aaxl3 & aaxh3 { prod = sext(aaxl3) * sext(aaxh3); }
+}
+
+# 1001 r001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1001 {
+a_opc:"ASR16" is epsilon {}
+a_opp:aacf3 is aacf3 {
+	aacf3 = aacf3 s>> 16;
+	FLAGS40(aacf3);
+}
+}
+
+# 1001 s01r xxxx xxxx
+with : aop1_3=0b01 & aop4_8=0b1001 {
+a_opc:"MULMVZ" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 1001 s10r xxxx xxxx
+with : aop1_3=0b10 & aop4_8=0b1001 {
+a_opc:"MULAC" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 1001 s11r xxxx xxxx
+with : aop1_3=0b11 & aop4_8=0b1001 {
+a_opc:"MULMV" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
+	aacf0 = prod;
+	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 101s t000 xxxx xxxx
+with : aop0_3=0b000 & aop5_8=0b101 {
+a_opc:"MULX" is epsilon {}
+a_opp:aax0lh4, aax1lh3 is aax1lh3 & aax0lh4 & aaxh3 {
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
+}
+
+# 1010 d001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1010 {
+a_opc:"ABS" is epsilon {}
+a_opp:aacf3 is aacf3 {
+	aacf3 = abs(aacf3);
+	FLAGS40(aacf3);
+}
+}
+
+# 1011 r001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1011 {
+a_opc:"TST" is epsilon {}
+a_opp:aacf3 is aacf3 {
+	FLAGS40(aacf3);
+}
+}
+
+# 1011 r001 xxxx xxxx
+with : aop1_3=0b01 & aop5_8=0b101 {
+a_opc:"MULXMVZ" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 101s t10r xxxx xxxx
+with : aop1_3=0b10 & aop5_8=0b101 {
+a_opc:"MULXAC" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 101s t11r xxxx xxxx
+with : aop1_3=0b11 & aop5_8=0b101 {
+a_opc:"MULXMV" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
+	aacf0 = prod;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 110s t000 xxxx xxxx
+with : aop0_3=0b000 & aop5_8=0b110 {
+a_opc:"MULC" is epsilon {}
+a_opp:aacm4, aaxh3 is aaxh3 & aacm4 {
+	prod = sext(aacm4) * sext(aaxh3);
+}
+}
+
+# 110r s001 xxxx xxxx
+with : aop0_3=0b001 & aop5_8=0b110 {
+a_opc:"CMPAXH" is epsilon {}
+a_opp:aacf3, aaxh4 is aacf3 & aaxh4 {
+	FLAGS_SUB40(aacf3, (sext(aaxh4) << 16));
+}
+}
+
+# 110s t01r xxxx xxxx
+with : aop1_3=0b01 & aop5_8=0b110 {
+a_opc:"MULCMVZ" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 110s t10r xxxx xxxx
+with : aop1_3=0b10 & aop5_8=0b110 {
+a_opc:"MULCAC" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 110s t11r xxxx xxxx
+with : aop1_3=0b11 & aop5_8=0b110 {
+a_opc:"MULCMV" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
+	aacf0 = prod;
+	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
+}
+}
+
+# 1110 00st xxxx xxxx
+with : aop2_4=0b00 & aop4_8=0b1110 {
+a_opc:"MADDX" is epsilon {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 {
+	prod = prod + (sext(aax0lh1) * sext(aax1lh0));
+}
+}
+
+# 1110 01st xxxx xxxx
+with : aop2_4=0b01 & aop4_8=0b1110 {
+a_opc:"MSUBX" is epsilon {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 {
+	prod = prod - (sext(aax0lh1) * sext(aax1lh0));
+}
+}
+
+# 1110 10st xxxx xxxx
+with : aop2_4=0b10 & aop4_8=0b1110 {
+a_opc:"MADDC" is epsilon {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 {
+	prod = prod + (sext(aacm1) * sext(aaxh0));
+}
+}
+
+# 1110 11st xxxx xxxx
+with : aop2_4=0b11 & aop4_8=0b1110 {
+a_opc:"MSUBC" is epsilon {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 {
+	prod = prod - (sext(aacm1) * sext(aaxh0));
+}
+}
+
+# 1111 000r xxxx xxxx
+with : aop1_4=0b000 & aop4_8=0b1111 {
+a_opc:"LSL16" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	aacf0 = aacf0 << 16;
+	FLAGS40(aacf0);
+}
+}
+
+# 1111 001s xxxx xxxx
+with : aop1_4=0b001 & aop4_8=0b1111 {
+a_opc:"MADD" is epsilon {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aaxh0 {
+	prod = prod + (sext(aaxl0) * sext(aaxh0));
+}
+}
+
+# 1111 010r xxxx xxxx
+with : aop1_4=0b010 & aop4_8=0b1111 {
+a_opc:"LSR16" is epsilon {}
+a_opp:aacf0   is aacf0 {
+	aacf0 = aacf0 >> 16;
+	FLAGS40(aacf0);
+}
+}
+
+# 1111 011s xxxx xxxx
+with : aop1_4=0b011 & aop4_8=0b1111 {
+a_opc:"MSUB" is epsilon {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aaxh0 {
+	prod = prod - (sext(aaxl0) * sext(aaxh0));
+}
+}
+
+# 1111 10sd xxxx xxxx
+with : aop2_4=0b10 & aop4_8=0b1111 {
+a_opc:"ADDPAXZ" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
+	oldprod:5 = prod;
+	# TODO: Does the masking happen before or after?
+	# i.e. do prod.l and ax0.l/ax1.l affect the result?
+	aacf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
+	# TODO: Why doesn't this set the overflow bit?
+	FLAGS40X(aacf0, oldprod > aacf0, 0);
+}
+}
+
+# 1111 110r xxxx xxxx
+with : aop1_4=0b110 & aop4_8=0b1111 {
+a_opc:"CLRL" is epsilon {}
+a_opp:aacl0 is aacl0 & aacf0 {
+	# TODO: This should be round-to-even
+	aacl0 = 0;
+	FLAGS40(aacf0);
+}
+}
+
+# 1111 111d xxxx xxxx
+with : aop1_4=0b111 & aop4_8=0b1111 {
+a_opc:"MOVPZ" is epsilon {}
+a_opp:aacf0 is aacf0 {
+	aacf0 = prod & 0xffffffff0000;
+	FLAGS40(aacf0);
+}
+}
+
+#---------------------------------------------------------------------------------------------------
+# Define extension opcodes and opcode parameters.
+# We use two tables: ext_opc0 for bit 7 (axbit) being set to 0, and ext_opc1 for bit 7 being 1.
+# This is so that arithmetic opcodes with aop4_8=0b0011 can be implemented correctly;
+# they only have 7 bits of the extension opcode and treat the top bit as 0.
+#
+# Extension opcodes are executed in parallel with arithmetic opcodes; they both receive the input
+# state (and weird behavior happens if they both write to the same register, which is only possible
+# with 'L or 'LN). This is not currently emulated; instead, we execute the arithmetic opcode
+# followed by the extension opcode.
+#
+# In this section, bits are numbered like this:
+# xxxx xxxx X654 3210
+# where the X bit is used to choose between ext_opc0 and ext_opc1, but not directly used otherwise.
+#---------------------------------------------------------------------------------------------------
+
+# xxxx xxxx 0000 00xx
+# xop2_4=0 and xop4_8=0 encodes 'NOP, but we don't explicitly show that because it would result in
+# a lot of noise for no gain. Note that the bottom two bits are unrestricted, though.
+
+# xxxx xxxx 0000 01rr
+with : xop2_4=1 & xop4_7=0 {
+ext_opc0:"DR" is epsilon {}
+ext_opp0:xar0_2 is xar0_2 { xar0_2 = xar0_2 - 1; }
+}
+
+# xxxx xxxx 0000 10rr
+with : xop2_4=2 & xop4_7=0 {
+ext_opc0:"IR" is epsilon {}
+ext_opp0:xar0_2 is xar0_2 { xar0_2 = xar0_2 + 1; }
+}
+
+# xxxx xxxx 0000 11rr
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+with : xop2_4=3 & xop4_7=0 {
+ext_opc0:"NR" is epsilon {}
+ext_opp0:xar0_2, xix0_2 is xar0_2 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
+}
+
+# xxxx xxxx 0001 ddss
+with : xop4_7=1 {
+ext_opc0:"MV" is epsilon {}
+ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & saturated_xac0_2 { xax2_4 = saturated_xac0_2; }
+}
+
+# xxxx xxxx 01dd d0ss
+with : xop2=0 & xop6=1 {
+ext_opc0:"L" is epsilon {}
+ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xac3_6 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; build sign_extend_xac3_6_after; }
+}
+
+# xxxx xxxx 01dd d1ss
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+with : xop2=1 & xop6=1 {
+ext_opc0:"LN" is epsilon {}
+ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xac3_6 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; build sign_extend_xac3_6_after; }
+}
+
+# xxxx xxxx 10dd 000s
+with : xop1=0 & xop2_4=0 & xop6=0 {
+ext_opc1:"LS" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = saturated_xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 10dd 010s
+with : xop1=0 & xop2_4=1 & xop6=0 {
+ext_opc1:"LSN" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = saturated_xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 10dd 100s
+with : xop1=0 & xop2_4=2 & xop6=0 {
+ext_opc1:"LSM" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = saturated_xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 10dd 110s
+with : xop1=0 & xop2_4=3 & xop6=0 {
+ext_opc1:"LSNM" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = saturated_xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 001s s0dd
+with : xop2=0 & xop5=1 & xop6=0 {
+ext_opc0:"S" is epsilon {}
+ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xac3_5 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + 1; }
+}
+
+# xxxx xxxx 001s s1dd
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+with : xop2=1 & xop5=1 & xop6=0 {
+ext_opc0:"SN" is epsilon {}
+ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xac3_5 & xix0_2 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + xix0_2; }
+}
+
+# xxxx xxxx 10dd 001s
+with : xop1=1 & xop2_4=0 & xop6=0 {
+ext_opc1:"SL" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 10dd 011s
+with : xop1=1 & xop2_4=1 & xop6=0 {
+ext_opc1:"SLN" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 10dd 101s
+with : xop1=1 & xop2_4=2 & xop6=0 {
+ext_opc1:"SLM" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 10dd 111s
+with : xop1=1 & xop2_4=3 & xop6=0 {
+ext_opc1:"SLNM" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 11dr 00ss
+# LD loads to both AX0 and AX1, with the instruction choosing separately for AX0.l vs AX0.h and AX1.l vs AX1.h.
+# ax0 is set to the memory value pointed by a choice of AR0/1/2, while ax1 is set to the memory value pointed by AR3.
+# AR3 cannot be used for the first value, as that encodes LDAX instead.  The address registers are increased by 1 or
+# the corresponding index register (depending on M/N like the other extension instructions).
+with : xop2_4=0 & xop6=1 {
+ext_opc1:"LD" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + 1;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 11sr 0011
+# LDAX sets ax0.h or ax1.h to the memory value pointed by either AR0 or AR1, and
+# ax0.l or ax1.l to the memory value pointed by AR3.  The choice is either both
+# ax0.h and ax0.l or ax1.h and ax1.l.  AR2 cannot be used.  M/N exist like normal.
+with : xop0_2=3 & xop2_4=0 & xop6=1 {
+ext_opc1:"LDAX" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + 1;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 11dr 01ss
+# xar0_2 and xix0_2 are the same bits in the instruction.  I haven't included it here (or in LDNM).
+with : xop2_4=1 & xop6=1 {
+ext_opc1:"LDN" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 & xix0_2 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + xix0_2;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 11sr 0111
+with : xop0_2=3 & xop2_4=1 & xop6=1 {
+ext_opc1:"LDAXN" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 & xix5 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + xix5;
+	ar3 = ar3 + 1;
+}
+}
+
+# xxxx xxxx 11dr 10ss
+with : xop2_4=2 & xop6=1 {
+ext_opc1:"LDM" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + 1;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 11sr 1011
+with : xop0_2=3 & xop2_4=2 & xop6=1 {
+ext_opc1:"LDAXM" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + 1;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 11dr 11ss
+with : xop2_4=3 & xop6=1 {
+ext_opc1:"LDNM" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 & xix0_2 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + xix0_2;
+	ar3 = ar3 + ix3;
+}
+}
+
+# xxxx xxxx 11dr 1111
+with : xop0_2=3 & xop2_4=3 & xop6=1 {
+ext_opc1:"LDAXNM" is epsilon{}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 & xix5 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + xix5;
+	ar3 = ar3 + ix3;
+}
+}
+
+#---------------------------------------------------------------------------------------------------
+# Final opcode combination logic
+#
+# We build an opc table for opcodes, and an opp table for parameters. This is so that extension
+# opcodes can be merged with the arithmetic opcode in the form MAIN'EXT main_param : ext_param.
+# We also need this for regular instructions so that we can include loop data in the parameters.
+# Otherwise, when loop data is present, everything gets treated as part of the mnemonic.
+#
+# All semantic actions are performed by the opp table.
+#---------------------------------------------------------------------------------------------------
+
+# First, deal with axbit's behavior for choosing extension opcodes:
+ext_opc:^ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
+ext_opp:^ext_opp0 is ext_opp0 & (axbit=0 | aop4_8=0b0011) { build ext_opp0; }
+
+ext_opc:^ext_opc1 is ext_opc1 & (axbit=1 & aop4_8!=0b0011) {}
+ext_opp:^ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
+
+# Regular opcodes are used directly:
+opc:^r_opc is r_opc & (op12_16<0b0011 ...) {}
+opp:^r_opp is r_opp & (op12_16<0b0011 ...) { build r_opp; }
+
+# Combine arithmetic ops and extension ops:
+with : (aop4_8>0b0010) {
+opc:^a_opc^"'"^ext_opc is a_opc & ext_opc {}
+opp:^a_opp ":" ext_opp is a_opp & ext_opp { build a_opp; build ext_opp; }
+
+# If the extension opcode is set to 0, it indicates 'NOP.
+# We could explicitly show 'NOP here, but that just adds noise for no benefit.
+opc:^a_opc is a_opc & (axbit=0 | aop4_8=0b0011) & xop0_7=0 {}
+opp:^a_opp is a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
+}
+
+# Handle looping logic:
+LoopSkipAddrWrapper: " ->"^loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
+LoopJumpBackAddrWrapper: " =>"^loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
+
+loopcheck:"" is hasloopcheck=0 {}
+loopcheck:LoopSkipAddrWrapper is hasloopcheck=1 & LoopSkipAddrWrapper & CurSt3 {
+	if (CurSt3 == 0) goto LoopSkipAddrWrapper;
+	CurSt3 = CurSt3 - 1;
+}
+loopjumpback:"" is hasloopjumpback=0 {}
+loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrapper {
+	goto LoopJumpBackAddrWrapper;
+}
+
+# Now populate the root instruction table.
+:^opc^" "^opp^loopcheck^loopjumpback is opc & opp & loopcheck & loopjumpback {
+	build loopcheck;
+	build opp;
+	build loopjumpback;
+}
