@@ -1,5 +1,91 @@
-# sleigh specification file for GameCube DSP
+# sleigh specification file for NEC μPD77210 digital signal processor
 
+define endian=big;
+define alignment=2;
+
+# U15807EJ2V0UM00.pdf page 20. Instruction memory is specified as "32-bit width × 16-bit words",
+# while X/Y data memory is specified as "16-bit width × 16-bit words". I have to assume that both
+# are accessed by a 16-bit pointer, while instructions are 32 bits in size, since that's consistent
+# with the other manual. Page 62 says the PC is 16-bit, as well.
+define space inst     type=ram_space      size=2 wordsize=4 default;
+define space data_x   type=ram_space      size=2 wordsize=2;
+define space data_y   type=ram_space      size=2 wordsize=2;
+define space register type=register_space size=1 wordsize=2;
+
+# U15807EJ2V0UM00.pdf Page 99, 4.5.5 Addressing mode
+# Data pointers, 0-3: X memory space, 4-7: Y memory space
+define register offset=0x00 size=2 [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
+# Index registers, corresponding to the above, signed
+define register offset=0x10 size=2 [ DN0 DN1 DN2 DN3 DN4 DN5 DN6 DN7 ];
+# Modulo registers
+define register offset=0x20 size=2 [ DMX DMY ];
+
+# Page 83, Status register (SR); page 84, Interrupt enable flag stack register (EIR)
+# SR, EIR
+# Page 91, 4.4.5 Error status register (ESR)
+# More... earlier on, e.g. Page 61.
+# ESR
+
+# Page 111, 4.6.2 General-purpose registers and data formats
+define register offset=0x80 size=5 [ R0 ];
+define register offset=0x80 size=1 [ R0E ];
+define register offset=0x81 size=2 [ R0H ];
+define register offset=0x83 size=2 [ R0L ];
+define register offset=0x81 size=4 [ R0HL ];
+define register offset=0x80 size=3 [ R0EH ];
+
+define register offset=0x90 size=5 [ R1 ];
+define register offset=0x90 size=1 [ R1E ];
+define register offset=0x91 size=2 [ R1H ];
+define register offset=0x93 size=2 [ R1L ];
+define register offset=0x91 size=4 [ R1HL ];
+define register offset=0x90 size=3 [ R1EH ];
+
+define register offset=0xA0 size=5 [ R2 ];
+define register offset=0xA0 size=1 [ R2E ];
+define register offset=0xA1 size=2 [ R2H ];
+define register offset=0xA3 size=2 [ R2L ];
+define register offset=0xA1 size=4 [ R2HL ];
+define register offset=0xA0 size=3 [ R2EH ];
+
+define register offset=0xB0 size=5 [ R3 ];
+define register offset=0xB0 size=1 [ R3E ];
+define register offset=0xB1 size=2 [ R3H ];
+define register offset=0xB3 size=2 [ R3L ];
+define register offset=0xB1 size=4 [ R3HL ];
+define register offset=0xB0 size=3 [ R3EH ];
+
+define register offset=0xC0 size=5 [ R4 ];
+define register offset=0xC0 size=1 [ R4E ];
+define register offset=0xC1 size=2 [ R4H ];
+define register offset=0xC3 size=2 [ R4L ];
+define register offset=0xC1 size=4 [ R4HL ];
+define register offset=0xC0 size=3 [ R4EH ];
+
+define register offset=0xD0 size=5 [ R5 ];
+define register offset=0xD0 size=1 [ R5E ];
+define register offset=0xD1 size=2 [ R5H ];
+define register offset=0xD3 size=2 [ R5L ];
+define register offset=0xD1 size=4 [ R5HL ];
+define register offset=0xD0 size=3 [ R5EH ];
+
+define register offset=0xE0 size=5 [ R6 ];
+define register offset=0xE0 size=1 [ R6E ];
+define register offset=0xE1 size=2 [ R6H ];
+define register offset=0xE3 size=2 [ R6L ];
+define register offset=0xE1 size=4 [ R6HL ];
+define register offset=0xE0 size=3 [ R6EH ];
+
+define register offset=0xF0 size=5 [ R7 ];
+define register offset=0xF0 size=1 [ R7E ];
+define register offset=0xF1 size=2 [ R7H ];
+define register offset=0xF3 size=2 [ R7L ];
+define register offset=0xF1 size=4 [ R7HL ];
+define register offset=0xF0 size=3 [ R7EH ];
+
+:TODO is epsilon unimpl
+
+@ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
 @define BLOOP_ONE_AFTER
 # Directly mutate the sr register instead of a set of fake registers
@@ -2188,3 +2274,4 @@ loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrap
 	build opp;
 	build loopjumpback;
 }
+@endif
