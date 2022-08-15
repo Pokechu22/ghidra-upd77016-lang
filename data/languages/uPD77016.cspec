@@ -3,6 +3,8 @@
 <compiler_spec>
   <global>
     <range space="inst"/>
+    <range space="data_x"/>
+    <range space="data_y"/>
   </global>
   <stackpointer register="SP" space="inst" growth="negative"/>
   <default_proto>
