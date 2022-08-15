@@ -83,8 +83,6 @@ define register offset=0xF3 size=2 [ R7L ];
 define register offset=0xF1 size=4 [ R7HL ];
 define register offset=0xF0 size=3 [ R7EH ];
 
-:TODO is epsilon unimpl
-
 # U13116EJ2V0UM00.pdf, Table A-1. Formats of Instruction Words
 # For the sake of simplification trinomial instructions use op0/op1/op2 instead of op1/op2/op3,
 # so that op1/op2 is consistent between trinomial and binomial instructions
@@ -170,68 +168,70 @@ attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
 
 # op3 = lt (op1,op2)
 # ro" = LT (ro, ro')
-:"LT" op2 "=" "LT("^op0, op1^")" is fixed_1=1 & op0 & opcode=0 & op1 & op2 unimpl
+form3op:"LT" op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 unimpl
 
 # op3 = op1h*op2h
 # ro = rh * rh'
-:"MPY" op2 "=" op0h "*" op1h is fixed_1=1 & op0h & opcode=1 & op1h & op2 unimpl
+form3op:"MPY" op2 "=" op0h "*" op1h is op0h & opcode=1 & op1h & op2 unimpl
 
 # op3 = op3 + op1h*op2h
 # ro = ro + rh * rh'
 # Note: Ghidra doesn't allow you to use op2 twice in the operands, op2_dupe works around that
-:"MADD" op2 "=" op2_dupe "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
+form3op:"MADD" op2 "=" op2_dupe "+" op0h "*" op1h is op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 – op1h*op2h
 # ro = ro – rh * rh'
-:"MSUB" op2 "=" op2_dupe "-" op0h "*" op1h is fixed_1=1 & op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
+form3op:"MSUB" op2 "=" op2_dupe "-" op0h "*" op1h is op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 + op1h*op2l
 # ro = ro + rh * rl
-:"SUMA" op2 "=" op2_dupe "+" op0h "*" op1l is fixed_1=1 & op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
+form3op:"SUMA" op2 "=" op2_dupe "+" op0h "*" op1l is op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
 
 # op3 = op3 + op1l*op2l
 # ro = ro + rl * rl'
-:"UUMA" op2 "=" op2_dupe "+" op0l "*" op1l is fixed_1=1 & op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
+form3op:"UUMA" op2 "=" op2_dupe "+" op0l "*" op1l is op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
 
 # op3 = op3 >> 1 + op1h*op2h
 # ro = (ro >> 1) + rh * rh'
-:"MAS1" op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
+form3op:"MAS1" op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 >> 16 + op1h*op2h
 # ro = (ro >> 16) + rh * rh'
-:"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
+form3op:"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op1 + op2
 # ro'' = ro + ro'
-:"ADD" op2 "=" op0 "+" op1 is fixed_1=1 & op0 & opcode=8 & op1 & op2 unimpl
+form3op:"ADD" op2 "=" op0 "+" op1 is op0 & opcode=8 & op1 & op2 unimpl
 
 # op3 = op1 – op2
 # ro'' = ro – ro'
-:"SUB" op2 "=" op0 "-" op1 is fixed_1=1 & op0 & opcode=9 & op1 & op2 unimpl
+form3op:"SUB" op2 "=" op0 "-" op1 is op0 & opcode=9 & op1 & op2 unimpl
 
 # op3 = op1 & op2
 # ro" = ro & ro'
-:"AND" op2 "=" op0 "&" op1 is fixed_1=1 & op0 & opcode=10 & op1 & op2 unimpl
+form3op:"AND" op2 "=" op0 "&" op1 is op0 & opcode=10 & op1 & op2 unimpl
 
 # op3 = op1 | op2
 # ro" = ro | ro'
-:"OR" op2 "=" op0 "|" op1 is fixed_1=1 & op0 & opcode=11 & op1 & op2 unimpl
+form3op:"OR" op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 unimpl
 
 # op3 = op1 ^ op2
 # ro" = ro /\ ro'
-:"XOR" op2 "=" op0 "/\\" op1 is fixed_1=1 & op0 & opcode=12 & op1 & op2 unimpl
+form3op:"XOR" op2 "=" op0 "/\\" op1 is op0 & opcode=12 & op1 & op2 unimpl
 
 # op3 = op1 sra op2l
 # ro' = ro SRA rl
-:"SRA" op2 "=" op0 "SRA" op1l is fixed_1=1 & op0 & opcode=13 & op1l & op2 unimpl
+form3op:"SRA" op2 "=" op0 "SRA" op1l is op0 & opcode=13 & op1l & op2 unimpl
 
 # op3 = op1 srl op2l
 # ro' = ro SRL rl
-:"SRL" op2 "=" op0 "SRL" op1l is fixed_1=1 & op0 & opcode=14 & op1l & op2 unimpl
+form3op:"SRL" op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 unimpl
 
 # op3 = op1 sll op2l
 # ro' = ro SLL rl
-:"SLL" op2 "=" op0 "SLL" op1l is fixed_1=1 & op0 & opcode=15 & op1l & op2 unimpl
+form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 unimpl
+
+:^form3op is fixed_1=1 & form3op { build form3op; }
 
 @ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
