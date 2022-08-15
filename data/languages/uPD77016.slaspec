@@ -166,6 +166,7 @@ attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
 # Figure A-1. Three-Operand Instruction Format
 # Note that we renumbered op1/op2/op3 to op0/op1/op2 so that op1/op2 are consistent
 # with 2-operand instructions.
+# It's just a guess that opcode is incremental; no numbers are actually given in the manual.
 
 # op3 = lt (op1,op2)
 # ro" = LT (ro, ro')
@@ -177,6 +178,7 @@ attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
 
 # op3 = op3 + op1h*op2h
 # ro = ro + rh * rh'
+# Note: Ghidra doesn't allow you to use op2 twice in the operands, op2_dupe works around that
 :"MADD" op2 "=" op2_dupe "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 – op1h*op2h
@@ -198,6 +200,38 @@ attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
 # op3 = op3 >> 16 + op1h*op2h
 # ro = (ro >> 16) + rh * rh'
 :"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
+
+# op3 = op1 + op2
+# ro'' = ro + ro'
+:"ADD" op2 "=" op0 "+" op1 is fixed_1=1 & op0 & opcode=8 & op1 & op2 unimpl
+
+# op3 = op1 – op2
+# ro'' = ro – ro'
+:"SUB" op2 "=" op0 "-" op1 is fixed_1=1 & op0 & opcode=9 & op1 & op2 unimpl
+
+# op3 = op1 & op2
+# ro" = ro & ro'
+:"AND" op2 "=" op0 "&" op1 is fixed_1=1 & op0 & opcode=10 & op1 & op2 unimpl
+
+# op3 = op1 | op2
+# ro" = ro | ro'
+:"OR" op2 "=" op0 "|" op1 is fixed_1=1 & op0 & opcode=11 & op1 & op2 unimpl
+
+# op3 = op1 ^ op2
+# ro" = ro /\ ro'
+:"XOR" op2 "=" op0 "/\\" op1 is fixed_1=1 & op0 & opcode=12 & op1 & op2 unimpl
+
+# op3 = op1 sra op2l
+# ro' = ro SRA rl
+:"SRA" op2 "=" op0 "SRA" op1l is fixed_1=1 & op0 & opcode=13 & op1l & op2 unimpl
+
+# op3 = op1 srl op2l
+# ro' = ro SRL rl
+:"SRL" op2 "=" op0 "SRL" op1l is fixed_1=1 & op0 & opcode=14 & op1l & op2 unimpl
+
+# op3 = op1 sll op2l
+# ro' = ro SLL rl
+:"SLL" op2 "=" op0 "SLL" op1l is fixed_1=1 & op0 & opcode=15 & op1l & op2 unimpl
 
 @ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
