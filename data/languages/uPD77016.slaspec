@@ -174,6 +174,9 @@ attach variables [ dest1 source2 ] [
 	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
 ];
 
+Direct: direct is xy=0 & direct { export *[data_x]:2 direct; }
+Direct: direct is xy=1 & direct { export *[data_y]:2 direct; }
+
 # TODO: Check this because Ghidra might be weird with 32-bit word sizes
 BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
 LoopEnd: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
@@ -406,8 +409,20 @@ immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm unimpl
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-4. Load/Store Instruction Format
-# TODO
 #---------------------------------------------------------------------------------------------------
+
+# Partial load/store -> Section load/store?
+loadstore:"LSSE" is opcode_2=3 unimpl
+
+# Direct addressing load/store
+# dest = *addr OR *addr = source
+# LSDA (Load/Store): Direct addressing load/store
+loadstore:"LSDA" Direct is opcode_2=2 & Direct unimpl
+
+# Immediate value modify load/store
+# dest = *dp_imm OR *dp_imm = source
+# LSIM (Load/Store): Immediate value index load/store
+loadstore:"LSIM" imm is opcode_2=1 & imm unimpl
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-5. Inter-Register Transfer Instruction Format
@@ -574,6 +589,7 @@ condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (to
 :^form2op is fixed_4=7 & form2op { build form2op; }
 :^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
 :^immop is fixed_4=5 & immop { build immop; }
+:^loadstore is fixed_4=4 & loadstore { build loadstore; }
 :^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter { build inter; }
 :^condition inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & condition { if (!condition) goto inst_next; build inter; }
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
