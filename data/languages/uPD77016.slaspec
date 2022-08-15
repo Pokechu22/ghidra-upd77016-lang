@@ -144,10 +144,8 @@ define token opbyte (32)
 	dest2 = (23, 25)
 	source2 = (17, 21)
 
-	jc = (25, 25)
+	flag_25 = (25, 25)
 	relative_addr = (7, 22)
-
-	rt = (25, 25)
 
 	imm_rep_sign = (15, 15)
 	imm_rep = (0, 14)
@@ -173,6 +171,11 @@ attach variables [ dest1 source2 ] [
 	# Unconditional
 	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
 ];
+
+# TODO: Check this because Ghidra might be weird with 32-bit word sizes
+BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
+
+attach variables [ dp ] [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
 
 #---------------------------------------------------------------------------------------------------
 # Instructions
@@ -425,6 +428,40 @@ immset:"LDI" dest1 "=" imm is dest1 & imm & flag_16=0 unimpl
 immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 unimpl
 
 #---------------------------------------------------------------------------------------------------
+# Figure A-7. Branch Instruction Format
+#---------------------------------------------------------------------------------------------------
+
+# br
+# JMP imm
+# JMP (Branch): Jump
+branch:"JMP" BranchAddr is opcode_2=3 & flag_25=0 & BranchAddr unimpl
+
+# call
+# CALL imm
+# CALL (Branch): Subroutine call
+branch:"CALL" BranchAddr is opcode_2=3 & flag_25=1 & BranchAddr unimpl
+
+# jp
+# JMP dp
+# JREG (Branch): Register indirect jump
+branch:"JREG" dp is opcode_2=2 & flag_25=0 & dp unimpl
+
+# callr
+# CALL dp
+# CREG (Branch): Register indirect subroutine call
+branch:"CREG" dp is opcode_2=2 & flag_25=1 & dp unimpl
+
+# ret
+# RET
+# RET (Branch): Return
+branch:"RET" is opcode_2=1 & flag_25=0 unimpl
+
+# reti
+# RETI
+# RETI (Branch): Interrupt return
+branch:"RETI" is opcode_2=1 & flag_25=1 unimpl
+
+#---------------------------------------------------------------------------------------------------
 # Merge the above together to form the root instruction table.
 #---------------------------------------------------------------------------------------------------
 
@@ -434,4 +471,5 @@ immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 unimpl
 :^immop is fixed_4=5 & immop { build immop; }
 :^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter { build inter; }
 :"IF (COND) "^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter { build inter; } # TODO actually check cond
-:^immset is fixed_4=3 & opcode_2=2  & immset { build immset; }
+:^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
+:"IF (COND) "^branch is fixed_4=2 & branch { build branch; } # TODO actually check cond
