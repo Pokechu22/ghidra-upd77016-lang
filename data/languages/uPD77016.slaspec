@@ -264,7 +264,7 @@ form3op:"OR" op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 unimpl
 # op3 = op1 ^ op2
 # ro" = ro /\ ro'
 # XOR (Binomial operation): Exclusive OR
-form3op:"XOR" op2 "=" op0 "/\\" op1 is op0 & opcode=12 & op1 & op2 unimpl
+form3op:"XOR" op2 "=" op0 "^" op1 is op0 & opcode=12 & op1 & op2 unimpl
 
 # op3 = op1 sra op2l
 # ro' = ro SRA rl
@@ -387,7 +387,7 @@ immop:"IOR" op2 "=" op1 "|" imm is opcode=3 & op1 & op2 & imm unimpl
 # op2 = op1 ^ imm
 # ro' = ro /\ imm
 # IXOR (Binomial operation): Immediate exclusive OR
-immop:"IXOR" op2 "=" op1 "/\\" imm is opcode=4 & op1 & op2 & imm unimpl
+immop:"IXOR" op2 "=" op1 "^" imm is opcode=4 & op1 & op2 & imm unimpl
 
 # op2 = op1 sra imm
 # ro' = ro SRA imm
@@ -534,37 +534,37 @@ condition:"" is cond=0 { c:1 = 1; export c; }
 
 # ==0
 # ==0: = 0
-condition:"IF ("^top^" == 0) " is cond=2 & top { c:1 = (top == 0); export c; }
+condition:"IF("^top^" == 0) " is cond=2 & top { c:1 = (top == 0); export c; }
 
 # !=0
 # !=0: ≠ 0
-condition:"IF ("^top^" != 0) " is cond=3 & top { c:1 = (top != 0); export c; }
+condition:"IF("^top^" != 0) " is cond=3 & top { c:1 = (top != 0); export c; }
 
 # >0
 # >0: > 0
-condition:"IF ("^top^" > 0) " is cond=4 & top { c:1 = (top s> 0); export c; }
+condition:"IF("^top^" > 0) " is cond=4 & top { c:1 = (top s> 0); export c; }
 
 # <=0
 # <=0: ≤ 0
-condition:"IF ("^top^" <= 0) " is cond=5 & top { c:1 = (top s<= 0); export c; }
+condition:"IF(" top^" <= 0) " is cond=5 & top { c:1 = (top s<= 0); export c; }
 
 # >=0
 # >=0: ≥ 0
-condition:"IF ("^top^" >= 0) " is cond=6 & top { c:1 = (top s>= 0); export c; }
+condition:"IF("^top^" >= 0) " is cond=6 & top { c:1 = (top s>= 0); export c; }
 
 # <0
 # <0: < 0
-condition:"IF ("^top^" < 0) " is cond=7 & top { c:1 = (top s< 0); export c; }
+condition:"IF("^top^" < 0) " is cond=7 & top { c:1 = (top s< 0); export c; }
 
 # ==ex
 # ==EX: Extension (bits 39 to 31 are a mixture of 0 and 1)
 # TODO: Isn't this definition backwards? The sign bit (31) should match all of the following bits if
 # the value is equal to its extension.
-condition:"IF ("^top^" == EXT("^top_hl^")) " is cond=8 & top & top_hl { c:1 = (top == sext(top_hl)); export c; }
+condition:"IF("^top^" == EXT("^top_hl^")) " is cond=8 & top & top_hl { c:1 = (top == sext(top_hl)); export c; }
 
 # !=ex
 # !=EX: Without extension (bits 39 to 31 are all 0 or all 1)
-condition:"IF ("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (top != sext(top_hl)); export c; }
+condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (top != sext(top_hl)); export c; }
 
 #---------------------------------------------------------------------------------------------------
 # Merge the above together to form the root instruction table.
@@ -572,11 +572,11 @@ condition:"IF ("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (t
 
 :^form3op is fixed_1=1 & form3op { build form3op; }
 :^form2op is fixed_4=7 & form2op { build form2op; }
-:condition^form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
+:^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
 :^immop is fixed_4=5 & immop { build immop; }
 :^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter { build inter; }
-:condition^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & condition { if (!condition) goto inst_next; build inter; }
+:^condition inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & condition { if (!condition) goto inst_next; build inter; }
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
-:condition^branch is fixed_4=2 & branch & condition { if (!condition) goto inst_next; build branch; }
+:^condition branch is fixed_4=2 & branch & condition { if (!condition) goto inst_next; build branch; }
 :^loop is fixed_4=1 & loop { build loop; }
 :^control is fixed_4=0 & control { build control; }
