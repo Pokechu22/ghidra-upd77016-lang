@@ -2,14 +2,14 @@
 
 <language_definitions>
   <language processor="uPD77016"
-            endian="big"
+            endian="little"
             size="16"
             variant="default"
             version="1.0"
             slafile="uPD77016.sla"
             processorspec="uPD77016.pspec"
             manualindexfile="../manuals/uPD77016.idx"
-            id="uPD77016:BE:16:default">
+            id="uPD77016:LE:16:default">
     <description>NEC µPD77210</description>
     <compiler name="default" spec="uPD77016.cspec" id="default"/>
   </language>

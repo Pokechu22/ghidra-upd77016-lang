@@ -1,6 +1,6 @@
 # sleigh specification file for NEC μPD77210 digital signal processor
 
-define endian=big;
+define endian=little;
 define alignment=4;
 
 # U15807EJ2V0UM00.pdf page 20. Instruction memory is specified as "32-bit width × 16-bit words",
