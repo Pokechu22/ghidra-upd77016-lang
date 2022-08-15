@@ -85,6 +85,73 @@ define register offset=0xF0 size=3 [ R7EH ];
 
 :TODO is epsilon unimpl
 
+# U13116EJ2V0UM00.pdf, Table A-1. Formats of Instruction Words
+# For the sake of simplification trinomial instructions use op0/op1/op2 instead of op1/op2/op3,
+# so that op1/op2 is consistent between trinomial and binomial instructions
+define token opbyte (32)
+	fixed_1 = (31, 31)
+	fixed_4 = (28, 31)
+	fixed_6 = (26, 31)
+
+	op0 = (28, 30)
+	opcode = (24, 27)
+	op1 = (21, 23)
+	op2 = (18, 20)
+	dx = (17, 17)
+	dy = (16, 16)
+
+	dpx = (14, 15)
+	modix = (11, 13)
+	rx = (8, 10)
+	rxh = (8, 10)
+	regx = (8, 10) # TODO: Difference between these?
+
+	dpy = (6, 7)
+	modiy = (3, 5)
+	ry = (0, 2)
+	ryh = (0, 2)
+	regy = (0, 2) # TODO: Difference between these?
+
+	cond = (3, 6)
+	top = (0, 2)
+
+	imm = (0, 15)
+
+	sufx = (23, 25)
+	sufy = (20, 22)
+
+	reg = (23, 25)
+	suf = (20, 22)
+	xy = (19, 19)
+	d = (16, 16)
+	direct = (0, 15)
+
+	dp = (17, 19)
+
+	source1 = (23, 25)
+	flag_22 = (22, 22)
+	dest1 = (17, 21)
+	flag_16 = (16, 16)
+
+	dest2 = (23, 25)
+	source2 = (17, 21)
+
+	dest1w = (17, 22)
+
+	jc = (25, 25)
+	relative_addr = (7, 22)
+
+	rt = (25, 25)
+
+	imm_rep_sign = (15, 15)
+	imm_rep = (0, 14)
+
+	rl = (0, 2)
+	loop_end = (16, 23)
+
+	fixed_rest = (0, 27)
+;
+
 @ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
 @define BLOOP_ONE_AFTER
