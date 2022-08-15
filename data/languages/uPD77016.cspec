@@ -4,7 +4,7 @@
   <global>
     <range space="inst"/>
   </global>
-  <!-- <stackpointer register="st0" space="inst" growth="negative"/> -->
+  <stackpointer register="SP" space="inst" growth="negative"/>
   <default_proto>
     <prototype name="__stdcall" extrapop="0" stackshift="0">
       <input>
