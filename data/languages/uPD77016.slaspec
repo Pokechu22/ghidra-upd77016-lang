@@ -462,6 +462,43 @@ branch:"RET" is opcode_2=1 & flag_25=0 unimpl
 branch:"RETI" is opcode_2=1 & flag_25=1 unimpl
 
 #---------------------------------------------------------------------------------------------------
+# Figure A-8. Hardware Loop Instruction Format
+# TODO
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+# Figure A-9. CPU Control Instruction Format
+#---------------------------------------------------------------------------------------------------
+
+# nop
+# NOP
+# NOP (Control): No operation
+# Note that we already had a NOP in A-2. Maybe this is the true NOP, and the other is for load/store
+# without any ALU action?
+control:"NOP" is fixed_rest=0 unimpl
+
+# halt
+# HALT
+# HALT (Control): Halt
+control:"HALT" is fixed_rest=1 unimpl
+
+# lpop
+# LPOP
+# LPOP (Hardware loop): Loop pop
+control:"LPOP" is fixed_rest=2 unimpl
+
+# fint
+# FINT
+# FINT (Control): Forget interrupt
+control:"FINT" is fixed_rest=4 unimpl
+
+# stop
+# STOP
+# STOP (Control): Stop
+# Apparently not supported on μPD77016, but it is supported on the rest of the family.
+control:"STOP" is fixed_rest=9 unimpl
+
+#---------------------------------------------------------------------------------------------------
 # Merge the above together to form the root instruction table.
 #---------------------------------------------------------------------------------------------------
 
@@ -473,3 +510,4 @@ branch:"RETI" is opcode_2=1 & flag_25=1 unimpl
 :"IF (COND) "^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter { build inter; } # TODO actually check cond
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
 :"IF (COND) "^branch is fixed_4=2 & branch { build branch; } # TODO actually check cond
+:^control is fixed_4=0 & control { build control; }
