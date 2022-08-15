@@ -20,11 +20,14 @@ define register offset=0x10 size=2 [ DN0 DN1 DN2 DN3 DN4 DN5 DN6 DN7 ];
 # Modulo registers
 define register offset=0x20 size=2 [ DMX DMY ];
 
+# Page 64, 4.4.2 (2) Stack (STK) and stack pointer (SP), only a rough implementation
+define register offset=0x30 size=2 [ STK SP ];
+# Page 71, 4.4.3 Flow control block
+define register offset=0x40 size=2 [ RC LSA LEA LC LSR1 LSR2 LSR3 LSP ];
 # Page 83, Status register (SR); page 84, Interrupt enable flag stack register (EIR)
-# SR, EIR
+define register offset=0x34 size=2 [ SR EIR ];
 # Page 91, 4.4.5 Error status register (ESR)
-# More... earlier on, e.g. Page 61.
-# ESR
+define register offset=0x38 size=2 [ ESR ];
 
 # Page 111, 4.6.2 General-purpose registers and data formats
 define register offset=0x80 size=5 [ R0 ];
@@ -141,8 +144,6 @@ define token opbyte (32)
 	dest2 = (23, 25)
 	source2 = (17, 21)
 
-	dest1w = (17, 22)
-
 	jc = (25, 25)
 	relative_addr = (7, 22)
 
@@ -157,9 +158,21 @@ define token opbyte (32)
 	fixed_rest = (0, 27)
 ;
 
-attach variables [ op0  op1  op2  op2_dupe ] [ R0  R1  R2  R3  R4  R5  R6  R7  ];
-attach variables [ op0l op1l op2l ] [ R0L R1L R2L R3L R4L R5L R6L R7L ];
-attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
+attach variables [ op0  op1  op2  op2_dupe      ] [ R0  R1  R2  R3  R4  R5  R6  R7  ];
+attach variables [ op0l op1l op2l source1 dest2 ] [ R0L R1L R2L R3L R4L R5L R6L R7L ];
+attach variables [ op0h op1h op2h               ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
+
+# Note: sr the following registers are labeled as unconditional and only appear in A-5.
+# A-6 gives an extra bit for dest1, but that would require 32 underscores here, so we ignore that.
+# lc is labeled as source2 only, as well.
+attach variables [ dest1 source2 ] [
+	# Conditional
+	DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7
+	DN0 DN1 DN2 DN3 DN4 DN5 DN6 DN7
+	DMX DMY
+	# Unconditional
+	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
+];
 
 #---------------------------------------------------------------------------------------------------
 # Instructions
@@ -385,7 +398,40 @@ immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=6 & op1 & op2 & imm unimpl
 # ISLL (Binomial operation): Immediate logical left shift
 immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm unimpl
 
+#---------------------------------------------------------------------------------------------------
+# Figure A-4. Load/Store Instruction Format
+# TODO
+#---------------------------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+# Figure A-5. Inter-Register Transfer Instruction Format
+# The only instruction here is MOV. Note that a general-purpose register is always on one side,
+# while a main bus register is on the other.
+#---------------------------------------------------------------------------------------------------
+
+# dest = rl OR rl = source
+# MOV (Inter-register transfer): Inter-register transfer
+inter:"MOV" source1 "=" dest1 is source1 & dest1 & flag_16=0 unimpl
+inter:"MOV" source2 "=" dest2 is source2 & dest2 & flag_16=1 unimpl
+
+#---------------------------------------------------------------------------------------------------
+# Figure A-6. Immediate Value Set Instruction Format
+# The only instruction is LDI.
+#---------------------------------------------------------------------------------------------------
+
+# dest = imm
+# LDI (Immediate value set): Immediate value set
+immset:"LDI" dest1 "=" imm is dest1 & imm & flag_16=0 unimpl
+immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 unimpl
+
+#---------------------------------------------------------------------------------------------------
+# Merge the above together to form the root instruction table.
+#---------------------------------------------------------------------------------------------------
+
 :^form3op is fixed_1=1 & form3op { build form3op; }
 :^form2op is fixed_4=7 & form2op { build form2op; }
 :"IF (COND) "^form2op is fixed_4=6 & form2op { build form2op; } # TODO actually check cond
 :^immop is fixed_4=5 & immop { build immop; }
+:^inter is fixed_6=0b001111 & flag_22=0 & inter { build inter; }
+:"IF (COND) "^inter is fixed_6=0b001111 & flag_22=1 & inter { build inter; } # TODO actually check cond
+:^immset is fixed_6=0b001111 & immset { build immset; }
