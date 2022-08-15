@@ -153,7 +153,7 @@
     <symbol name="IPR" address="data_x:38C0" /> <!-- Instruction paging register -->
     <symbol name="DPR" address="data_x:38C1" /> <!-- Data paging register -->
     <!-- Additional IO -->
-    <!-- "Available in μPD77213 only. This is a reserved area in the μPD77210." -->
+    <!-- "Available in uPD77213 only. This is a reserved area in the uPD77210." -->
     <symbol name="APCR" address="data_x:38D0" /> <!-- Expansion interface control register -->
 
     <!-- TSIO (SIO1) -->
@@ -275,7 +275,7 @@
     <symbol name="IPR" address="data_y:38C0" /> <!-- Instruction paging register -->
     <symbol name="DPR" address="data_y:38C1" /> <!-- Data paging register -->
     <!-- Additional IO -->
-    <!-- "Available in μPD77213 only. This is a reserved area in the μPD77210." -->
+    <!-- "Available in uPD77213 only. This is a reserved area in the uPD77210." -->
     <symbol name="APCR" address="data_y:38D0" /> <!-- Expansion interface control register -->
   </default_symbols>
   <!-- U15807EJ2V0UM00.pdf, page 93 Figure 4-23. Data Memory Map -->
