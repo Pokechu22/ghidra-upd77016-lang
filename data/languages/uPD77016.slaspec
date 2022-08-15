@@ -156,9 +156,9 @@ define token opbyte (32)
 	fixed_rest = (0, 27)
 ;
 
-attach variables [ op0  op1  op2  op2_dupe      ] [ R0  R1  R2  R3  R4  R5  R6  R7  ];
-attach variables [ op0l op1l op2l source1 dest2 ] [ R0L R1L R2L R3L R4L R5L R6L R7L ];
-attach variables [ op0h op1h op2h               ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
+attach variables [ op0  op1  op2  op2_dupe         ] [ R0  R1  R2  R3  R4  R5  R6  R7  ];
+attach variables [ op0l op1l op2l source1 dest2 rl ] [ R0L R1L R2L R3L R4L R5L R6L R7L ];
+attach variables [ op0h op1h op2h                  ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
 
 # Note: sr the following registers are labeled as unconditional and only appear in A-5.
 # A-6 gives an extra bit for dest1, but that would require 32 underscores here, so we ignore that.
@@ -174,6 +174,7 @@ attach variables [ dest1 source2 ] [
 
 # TODO: Check this because Ghidra might be weird with 32-bit word sizes
 BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
+LoopEnd: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
 
 attach variables [ dp ] [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
 
@@ -463,8 +464,28 @@ branch:"RETI" is opcode_2=1 & flag_25=1 unimpl
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-8. Hardware Loop Instruction Format
-# TODO
 #---------------------------------------------------------------------------------------------------
+
+# repeat count
+# REP count
+# REP (Hardware loop): Repeat
+loop:"REP" imm_rep is opcode_2=3 & imm_rep_sign=0 & imm_rep unimpl
+
+# repeat rl
+# REP count
+# REP (Hardware loop): Repeat
+# Note: This isn't clearly distinguished, but it DOES exist, see e.g. page 17
+loop:"REP" rl is opcode_2=2 & rl unimpl
+
+# loop imm { }
+# LOOP count { 2 to 255 instruction words };
+# LOOP (Hardware loop): Loop
+loop:"LOOP" imm_rep, LoopEnd is opcode_2=1 & LoopEnd & imm_rep_sign=0 & imm_rep unimpl
+
+# loop rl { }
+# LOOP count { 2 to 255 instruction words };
+# LOOP (Hardware loop): Loop
+loop:"LOOP" rl, LoopEnd is opcode_2=1 & LoopEnd & rl unimpl
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-9. CPU Control Instruction Format
@@ -510,4 +531,5 @@ control:"STOP" is fixed_rest=9 unimpl
 :"IF (COND) "^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter { build inter; } # TODO actually check cond
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
 :"IF (COND) "^branch is fixed_4=2 & branch { build branch; } # TODO actually check cond
+:^loop is fixed_4=1 & loop { build loop; }
 :^control is fixed_4=0 & control { build control; }
