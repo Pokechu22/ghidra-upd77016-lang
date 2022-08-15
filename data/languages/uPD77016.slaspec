@@ -206,7 +206,9 @@ attach variables [ dp ] [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
 # op3 = lt (op1,op2)
 # ro" = LT (ro, ro')
 # LT (Binomial operation): Less than
-form3op:"LT" op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 unimpl
+form3op:"LT" op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 {
+	op2 = zext(op0 < op1);
+}
 
 # op3 = op1h*op2h
 # ro = rh * rh'
@@ -247,42 +249,58 @@ form3op:"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode
 # op3 = op1 + op2
 # ro'' = ro + ro'
 # ADD (Binomial operation): Add
-form3op:"ADD" op2 "=" op0 "+" op1 is op0 & opcode=8 & op1 & op2 unimpl
+form3op:"ADD" op2 "=" op0 "+" op1 is op0 & opcode=8 & op1 & op2 {
+	op2 = op0 + op1;
+}
 
 # op3 = op1 – op2
 # ro'' = ro – ro'
 # SUB (Binomial operation): Sub
-form3op:"SUB" op2 "=" op0 "-" op1 is op0 & opcode=9 & op1 & op2 unimpl
+form3op:"SUB" op2 "=" op0 "-" op1 is op0 & opcode=9 & op1 & op2 {
+	op2 = op0 - op1;
+}
 
 # op3 = op1 & op2
 # ro" = ro & ro'
 # AND (Binomial operation): AND
-form3op:"AND" op2 "=" op0 "&" op1 is op0 & opcode=10 & op1 & op2 unimpl
+form3op:"AND" op2 "=" op0 "&" op1 is op0 & opcode=10 & op1 & op2 {
+	op2 = op0 & op1;
+}
 
 # op3 = op1 | op2
 # ro" = ro | ro'
 # OR (Binomial operation): OR
-form3op:"OR" op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 unimpl
+form3op:"OR" op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 {
+	op2 = op0 | op1;
+}
 
 # op3 = op1 ^ op2
 # ro" = ro /\ ro'
 # XOR (Binomial operation): Exclusive OR
-form3op:"XOR" op2 "=" op0 "^" op1 is op0 & opcode=12 & op1 & op2 unimpl
+form3op:"XOR" op2 "=" op0 "^" op1 is op0 & opcode=12 & op1 & op2 {
+	op2 = op0 ^ op1;
+}
 
 # op3 = op1 sra op2l
 # ro' = ro SRA rl
 # SRA (Binomial operation): Arithmetic right shift
-form3op:"SRA" op2 "=" op0 "SRA" op1l is op0 & opcode=13 & op1l & op2 unimpl
+form3op:"SRA" op2 "=" op0 "SRA" op1l is op0 & opcode=13 & op1l & op2 {
+	op2 = op0 s>> (op1l & 0x3f);
+}
 
 # op3 = op1 srl op2l
 # ro' = ro SRL rl
 # SRL (Binomial operation): Logical right shift
-form3op:"SRL" op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 unimpl
+form3op:"SRL" op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 {
+	op2 = op0 >> (op1l & 0x3f);
+}
 
 # op3 = op1 sll op2l
 # ro' = ro SLL rl
 # SLL (Binomial operation): Logical left shift
-form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 unimpl
+form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 {
+	op2 = op0 << (op1l & 0x3f);
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-2. Two-Operand Instruction Format
@@ -295,37 +313,49 @@ form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 unimpl
 # This one is weird, since the documentation warns (page 125) that:
 # “NOP” is a direction to the ALU and does not mean that the entire instruction word is “NOP”.
 # However, the NOP instruction itself doesn't mention that.
-form2op:"NOP" is opcode=0 unimpl
+form2op:"NOP" is opcode=0 {}
 
 # clr (op2)
 # CLR (ro)
 # CLR (Monomial operation): Clear
-form2op:"CLR" op2 is opcode=1 & op2 unimpl
+form2op:"CLR" op2 is opcode=1 & op2 {
+	op2 = 0;
+}
 
 # op2 = op1 + 1
 # ro' = ro + 1
 # INC (Monomial operation): Increment
-form2op:"INC" op2 "=" op1 "+" "1" is opcode=2 & op1 & op2 unimpl
+form2op:"INC" op2 "=" op1 "+" "1" is opcode=2 & op1 & op2 {
+	op2 = op1 + 1;
+}
 
 # op2 = op1 – 1
 # ro' = ro – 1
 # DEC (Monomial operation): Decrement
-form2op:"DEC" op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 unimpl
+form2op:"DEC" op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 {
+	op2 = op1 - 1;
+}
 
 # op2 = abs (op1)
 # ro' = ABS (ro)
 # ABS (Monomial operation): Absolute value
-form2op:"ABS" op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 unimpl
+form2op:"ABS" op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 {
+	op2 = abs(op1);
+}
 
 # op2 = ~op1
 # ro' = ~ ro
 # NOT (Monomial operation): One’s complement
-form2op:"NOT" op2 "=" "~"^op1 is opcode=5 & op1 & op2 unimpl
+form2op:"NOT" op2 "=" "~"^op1 is opcode=5 & op1 & op2 {
+	op2 = ~op1;
+}
 
 # op2 = –op1
 # ro' = –ro
 # NEG (Monomial operation): Two’s complement
-form2op:"NEG" op2 "=" "-"^op1 is opcode=6 & op1 & op2 unimpl
+form2op:"NEG" op2 "=" "-"^op1 is opcode=6 & op1 & op2 {
+	op2 = -op1;
+}
 
 # op2 = clip (op1)
 # ro' = CLIP (ro)
@@ -345,7 +375,9 @@ form2op:"EXP" op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
 # op2 = op1
 # ro' = ro
 # PUT (Monomial operation): Put
-form2op:"PUT" op2 "=" op1 is opcode=10 & op1 & op2 { op2 = op1; }
+form2op:"PUT" op2 "=" op1 is opcode=10 & op1 & op2 {
+	op2 = op1;
+}
 
 # op2 / = op1
 # ro' / = ro
@@ -355,12 +387,16 @@ form2op:"DIV" op2 "/ =" op1 is opcode=11 & op1 & op2 unimpl
 # op2 + = op1
 # ro' + = ro
 # ACA (Monomial operation): Accumulate add
-form2op:"ACA" op2 "+ =" op1 is opcode=12 & op1 & op2 unimpl
+form2op:"ACA" op2 "+ =" op1 is opcode=12 & op1 & op2 {
+	op2 = op2 + op1;
+}
 
 # op2 – = op1
 # ro' – = ro
 # ACS (Monomial operation): Accumulate subtract
-form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 unimpl
+form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 {
+	op2 = op2 - op1;
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-3. Immediate Value Operation Instruction Format
@@ -369,43 +405,59 @@ form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 unimpl
 # op2 = op1 + imm
 # ro' = ro + imm
 # IADD (Binomial operation): Immediate add
-immop:"IADD" op2 "=" op1 "+" imm is opcode=0 & op1 & op2 & imm unimpl
+immop:"IADD" op2 "=" op1 "+" imm is opcode=0 & op1 & op2 & imm {
+	op2 = op1 + imm;
+}
 
 # op3 = op1 – imm
 # ro' = ro – imm
 # ISUB (Binomial operation): Immediate sub
 # (op3 is a typo in the original manual)
-immop:"ISUB" op2 "=" op1 "-" imm is opcode=1 & op1 & op2 & imm unimpl
+immop:"ISUB" op2 "=" op1 "-" imm is opcode=1 & op1 & op2 & imm {
+	op2 = op1 - imm;
+}
 
 # op2 = op1 & imm
 # ro' = ro & imm
 # IAND (Binomial operation): Immediate AND
-immop:"IAND" op2 "=" op1 "&" imm is opcode=2 & op1 & op2 & imm unimpl
+immop:"IAND" op2 "=" op1 "&" imm is opcode=2 & op1 & op2 & imm {
+	op2 = op1 & imm;
+}
 
 # op2 = op1 | imm
 # ro' = ro | imm
 # IOR (Binomial operation): Immediate OR
-immop:"IOR" op2 "=" op1 "|" imm is opcode=3 & op1 & op2 & imm unimpl
+immop:"IOR" op2 "=" op1 "|" imm is opcode=3 & op1 & op2 & imm {
+	op2 = op1 | imm;
+}
 
 # op2 = op1 ^ imm
 # ro' = ro /\ imm
 # IXOR (Binomial operation): Immediate exclusive OR
-immop:"IXOR" op2 "=" op1 "^" imm is opcode=4 & op1 & op2 & imm unimpl
+immop:"IXOR" op2 "=" op1 "^" imm is opcode=4 & op1 & op2 & imm {
+	op2 = op1 ^ imm;
+}
 
 # op2 = op1 sra imm
 # ro' = ro SRA imm
 # ISRA (Binomial operation): Immediate arithmetic right shift
-immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=5 & op1 & op2 & imm unimpl
+immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=5 & op1 & op2 & imm {
+	op2 = op1 s>> imm;
+}
 
 # op2 = op1 srl imm
 # ro' = ro SRL imm
 # ISRL (Binomial operation): Immediate logical right shift
-immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=6 & op1 & op2 & imm unimpl
+immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=6 & op1 & op2 & imm {
+	op2 = op1 >> imm;
+}
 
 # op2 = op1 sll imm
 # ro' = ro SLL imm
 # ISLL (Binomial operation): Immediate logical left shift
-immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm unimpl
+immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm {
+	op2 = op1 << imm;
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-4. Load/Store Instruction Format
@@ -432,8 +484,12 @@ loadstore:"LSIM" imm is opcode_2=1 & imm unimpl
 
 # dest = rl OR rl = source
 # MOV (Inter-register transfer): Inter-register transfer
-inter:"MOV" source1 "=" dest1 is source1 & dest1 & flag_16=0 unimpl
-inter:"MOV" source2 "=" dest2 is source2 & dest2 & flag_16=1 unimpl
+inter:"MOV" source1 "=" dest1 is source1 & dest1 & flag_16=0 {
+	dest1 = source1;
+}
+inter:"MOV" source2 "=" dest2 is source2 & dest2 & flag_16=1 {
+	dest2 = source2;
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-6. Immediate Value Set Instruction Format
@@ -442,8 +498,12 @@ inter:"MOV" source2 "=" dest2 is source2 & dest2 & flag_16=1 unimpl
 
 # dest = imm
 # LDI (Immediate value set): Immediate value set
-immset:"LDI" dest1 "=" imm is dest1 & imm & flag_16=0 unimpl
-immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 unimpl
+immset:"LDI" dest1 "=" imm is dest1 & imm & flag_16=0 {
+	dest1 = imm;
+}
+immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 {
+	dest2 = imm;
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-7. Branch Instruction Format
@@ -513,12 +573,14 @@ loop:"LOOP" rl, LoopEnd is opcode_2=1 & LoopEnd & rl unimpl
 # NOP (Control): No operation
 # Note that we already had a NOP in A-2. Maybe this is the true NOP, and the other is for load/store
 # without any ALU action?
-control:"NOP" is fixed_rest=0 unimpl
+control:"NOP" is fixed_rest=0 {}
 
 # halt
 # HALT
 # HALT (Control): Halt
-control:"HALT" is fixed_rest=1 unimpl
+control:"HALT" is fixed_rest=1 {
+	goto inst_start; # Infinite loop
+}
 
 # lpop
 # LPOP
@@ -534,7 +596,9 @@ control:"FINT" is fixed_rest=4 unimpl
 # STOP
 # STOP (Control): Stop
 # Apparently not supported on μPD77016, but it is supported on the rest of the family.
-control:"STOP" is fixed_rest=9 unimpl
+control:"STOP" is fixed_rest=9 {
+	goto inst_start; # Infinite loop
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-10. Conditional Instruction Format
