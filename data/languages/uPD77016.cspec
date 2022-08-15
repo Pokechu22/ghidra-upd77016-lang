@@ -8,6 +8,9 @@
   <default_proto>
     <prototype name="__stdcall" extrapop="0" stackshift="0">
       <input>
+        <pentry minsize="5" maxsize="5">
+          <register name="R0"/>
+        </pentry>
         <!-- This is a guess -->
         <!-- <pentry minsize="5" maxsize="5">
           <register name="acc0"/>
