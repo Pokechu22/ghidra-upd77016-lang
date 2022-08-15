@@ -543,7 +543,8 @@ control:"STOP" is fixed_rest=9 unimpl
 
 # ever
 # EVER: Unconditional (top description not necessary)
-condition:"" is cond=0 { c:1 = 1; export c; }
+# Not implemented, as we instead skip the condition step
+# condition:"" is cond=0 { c:1 = 1; export c; }
 
 # blank row skipped (presumably corresponds to cond=1)
 
@@ -587,12 +588,15 @@ condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (to
 
 :^form3op is fixed_1=1 & form3op { build form3op; }
 :^form2op is fixed_4=7 & form2op { build form2op; }
+:^form2op is fixed_4=6 & form2op & cond=0 { build form2op; }
 :^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
 :^immop is fixed_4=5 & immop { build immop; }
 :^loadstore is fixed_4=4 & loadstore { build loadstore; }
 :^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter { build inter; }
+:^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & cond=0 { build inter; }
 :^condition inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & condition { if (!condition) goto inst_next; build inter; }
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
+:^branch is fixed_4=2 & branch & cond=0 { build branch; }
 :^condition branch is fixed_4=2 & branch & condition { if (!condition) goto inst_next; build branch; }
 :^loop is fixed_4=1 & loop { build loop; }
 :^control is fixed_4=0 & control { build control; }
