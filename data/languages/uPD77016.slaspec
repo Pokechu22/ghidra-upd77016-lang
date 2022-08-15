@@ -231,7 +231,71 @@ form3op:"SRL" op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 unimpl
 # ro' = ro SLL rl
 form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 unimpl
 
+# Figure A-2. Two-Operand Instruction Format
+# op1/op2 match the meanings in the manual now.
+
+# nop
+# NOP
+# This one is weird, since the documentation warns (page 125) that:
+# “NOP” is a direction to the ALU and does not mean that the entire instruction word is “NOP”.
+# However, the NOP instruction itself doesn't mention that.
+form2op:"NOP" is opcode=0 unimpl
+
+# clr (op2)
+# CLR (ro)
+form2op:"CLR" op2 is opcode=1 & op2 unimpl
+
+# op2 = op1 + 1
+# ro' = ro + 1
+form2op:"INC" op2 "=" op1 "+" "1" is opcode=2 & op1 & op2 unimpl
+
+# op2 = op1 – 1
+# ro' = ro – 1
+form2op:"DEC" op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 unimpl
+
+# op2 = abs (op1)
+# ro' = ABS (ro)
+form2op:"ABS" op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 unimpl
+
+# op2 = ~op1
+# ro' = ~ ro
+form2op:"NOT" op2 "=" "~"^op1 is opcode=5 & op1 & op2 unimpl
+
+# op2 = –op1
+# ro' = –ro
+form2op:"NEG" op2 "=" "-"^op1 is opcode=6 & op1 & op2 unimpl
+
+# op2 = clip (op1)
+# ro' = CLIP (ro)
+form2op:"CLIP" op2 "=" "CLIP("^op1^")" is opcode=7 & op1 & op2 unimpl
+
+# op2 = round (op1)
+# ro' = ROUND (ro)
+form2op:"RND" op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 unimpl
+
+# op2 = exp (op1)
+# ro' = EXP (ro)
+form2op:"EXP" op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
+
+# op2 = op1
+# ro' = ro
+form2op:"PUT" op2 "=" op1 is opcode=10 & op1 & op2 { op2 = op1; }
+
+# op2 / = op1
+# ro' / = ro
+form2op:"DIV" op2 "/ =" op1 is opcode=11 & op1 & op2 unimpl
+
+# op2 + = op1
+# ro' + = ro
+form2op:"ACA" op2 "+ =" op1 is opcode=12 & op1 & op2 unimpl
+
+# op2 – = op1
+# ro' – = ro
+form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 unimpl
+
 :^form3op is fixed_1=1 & form3op { build form3op; }
+:^form2op is fixed_4=7 & form2op { build form2op; }
+:"IF (COND) "^form2op is fixed_4=6 & form2op { build form2op; } # TODO actually check cond
 
 @ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
