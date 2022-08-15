@@ -129,6 +129,10 @@ define token opbyte (32)
 	sufx = (23, 25)
 	sufy = (20, 22)
 
+	regl = (23, 25)
+	regh = (23, 25)
+	rege = (23, 25)
+	regeh = (23, 25)
 	reg = (23, 25)
 	suf = (20, 22)
 	xy = (19, 19)
@@ -157,10 +161,12 @@ define token opbyte (32)
 	fixed_rest = (0, 27)
 ;
 
-attach variables [ op0  op1  op2  op2_dupe top     ] [ R0   R1   R2   R3   R4   R5   R6   R7   ];
-attach variables [ op0l op1l op2l source1 dest2 rl ] [ R0L  R1L  R2L  R3L  R4L  R5L  R6L  R7L  ];
-attach variables [ op0h op1h op2h                  ] [ R0H  R1H  R2H  R3H  R4H  R5H  R6H  R7H  ];
-attach variables [ top_hl                          ] [ R0HL R1HL R2HL R3HL R4HL R5HL R6HL R7HL ];
+attach variables [ op0  op1  op2  op2_dupe top reg      ] [ R0   R1   R2   R3   R4   R5   R6   R7   ];
+attach variables [ op0l op1l op2l source1 dest2 rl regl ] [ R0L  R1L  R2L  R3L  R4L  R5L  R6L  R7L  ];
+attach variables [ op0h op1h op2h regh                  ] [ R0H  R1H  R2H  R3H  R4H  R5H  R6H  R7H  ];
+attach variables [ top_hl                               ] [ R0HL R1HL R2HL R3HL R4HL R5HL R6HL R7HL ];
+attach variables [ rege                                 ] [ R0E  R1E  R2E  R3E  R4E  R5E  R6E  R7E  ];
+attach variables [ regeh                                ] [ R0EH R1EH R2EH R3EH R4EH R5EH R6EH R7EH ];
 
 # Note: sr the following registers are labeled as unconditional and only appear in A-5.
 # A-6 gives an extra bit for dest1, but that would require 32 underscores here, so we ignore that.
@@ -466,10 +472,21 @@ immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm {
 # Partial load/store -> Section load/store?
 loadstore:"LSSE" is opcode_2=3 unimpl
 
+Suf:regl is suf=0 & regl { export regl; }
+Suf:regh is suf=1 & regh { export regh; }
+#Suf:rege is suf=2 & rege { export rege; }
+#Suf:regeh is suf=3 & regeh { export regeh; }
+#Suf:reg is suf=4 & reg { export reg; }
+
 # Direct addressing load/store
 # dest = *addr OR *addr = source
 # LSDA (Load/Store): Direct addressing load/store
-loadstore:"LSDA" Direct is opcode_2=2 & Direct unimpl
+loadstore:"LSDA" Direct "=" Suf is opcode_2=2 & Direct & Suf & d=0 {
+	Direct = Suf;
+}
+loadstore:"LSDA" Suf "=" Direct is opcode_2=2 & Direct & Suf & d=1 {
+	Suf = Direct;
+}
 
 # Immediate value modify load/store
 # dest = *dp_imm OR *dp_imm = source
