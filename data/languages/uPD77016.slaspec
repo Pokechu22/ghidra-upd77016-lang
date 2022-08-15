@@ -94,9 +94,16 @@ define token opbyte (32)
 	fixed_6 = (26, 31)
 
 	op0 = (28, 30)
+	op0l = (28, 30)
+	op0h = (28, 30)
 	opcode = (24, 27)
 	op1 = (21, 23)
+	op1l = (21, 23)
+	op1h = (21, 23)
 	op2 = (18, 20)
+	op2_dupe = (18, 20)
+	op2l = (18, 20)
+	op2h = (18, 20)
 	dx = (17, 17)
 	dy = (16, 16)
 
@@ -151,6 +158,46 @@ define token opbyte (32)
 
 	fixed_rest = (0, 27)
 ;
+
+attach variables [ op0  op1  op2  op2_dupe ] [ R0  R1  R2  R3  R4  R5  R6  R7  ];
+attach variables [ op0l op1l op2l ] [ R0L R1L R2L R3L R4L R5L R6L R7L ];
+attach variables [ op0h op1h op2h ] [ R0H R1H R2H R3H R4H R5H R6H R7H ];
+
+# Figure A-1. Three-Operand Instruction Format
+# Note that we renumbered op1/op2/op3 to op0/op1/op2 so that op1/op2 are consistent
+# with 2-operand instructions.
+
+# op3 = lt (op1,op2)
+# ro" = LT (ro, ro')
+:"LT" op2 "=" "LT("^op0, op1^")" is fixed_1=1 & op0 & opcode=0 & op1 & op2 unimpl
+
+# op3 = op1h*op2h
+# ro = rh * rh'
+:"MPY" op2 "=" op0h "*" op1h is fixed_1=1 & op0h & opcode=1 & op1h & op2 unimpl
+
+# op3 = op3 + op1h*op2h
+# ro = ro + rh * rh'
+:"MADD" op2 "=" op2_dupe "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
+
+# op3 = op3 – op1h*op2h
+# ro = ro – rh * rh'
+:"MSUB" op2 "=" op2_dupe "-" op0h "*" op1h is fixed_1=1 & op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
+
+# op3 = op3 + op1h*op2l
+# ro = ro + rh * rl
+:"SUMA" op2 "=" op2_dupe "+" op0h "*" op1l is fixed_1=1 & op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
+
+# op3 = op3 + op1l*op2l
+# ro = ro + rl * rl'
+:"UUMA" op2 "=" op2_dupe "+" op0l "*" op1l is fixed_1=1 & op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
+
+# op3 = op3 >> 1 + op1h*op2h
+# ro = (ro >> 1) + rh * rh'
+:"MAS1" op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
+
+# op3 = op3 >> 16 + op1h*op2h
+# ro = (ro >> 16) + rh * rh'
+:"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is fixed_1=1 & op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
 
 @ifdef OLD_CODE
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
