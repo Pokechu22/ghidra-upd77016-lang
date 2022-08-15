@@ -340,6 +340,52 @@ form2op:"ACA" op2 "+ =" op1 is opcode=12 & op1 & op2 unimpl
 # ACS (Monomial operation): Accumulate subtract
 form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 unimpl
 
+#---------------------------------------------------------------------------------------------------
+# Figure A-3. Immediate Value Operation Instruction Format
+#---------------------------------------------------------------------------------------------------
+
+# op2 = op1 + imm
+# ro' = ro + imm
+# IADD (Binomial operation): Immediate add
+immop:"IADD" op2 "=" op1 "+" imm is opcode=0 & op1 & op2 & imm unimpl
+
+# op3 = op1 – imm
+# ro' = ro – imm
+# ISUB (Binomial operation): Immediate sub
+# (op3 is a typo in the original manual)
+immop:"ISUB" op2 "=" op1 "-" imm is opcode=1 & op1 & op2 & imm unimpl
+
+# op2 = op1 & imm
+# ro' = ro & imm
+# IAND (Binomial operation): Immediate AND
+immop:"IAND" op2 "=" op1 "&" imm is opcode=2 & op1 & op2 & imm unimpl
+
+# op2 = op1 | imm
+# ro' = ro | imm
+# IOR (Binomial operation): Immediate OR
+immop:"IOR" op2 "=" op1 "|" imm is opcode=3 & op1 & op2 & imm unimpl
+
+# op2 = op1 ^ imm
+# ro' = ro /\ imm
+# IXOR (Binomial operation): Immediate exclusive OR
+immop:"IXOR" op2 "=" op1 "/\\" imm is opcode=4 & op1 & op2 & imm unimpl
+
+# op2 = op1 sra imm
+# ro' = ro SRA imm
+# ISRA (Binomial operation): Immediate arithmetic right shift
+immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=5 & op1 & op2 & imm unimpl
+
+# op2 = op1 srl imm
+# ro' = ro SRL imm
+# ISRL (Binomial operation): Immediate logical right shift
+immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=6 & op1 & op2 & imm unimpl
+
+# op2 = op1 sll imm
+# ro' = ro SLL imm
+# ISLL (Binomial operation): Immediate logical left shift
+immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm unimpl
+
 :^form3op is fixed_1=1 & form3op { build form3op; }
 :^form2op is fixed_4=7 & form2op { build form2op; }
 :"IF (COND) "^form2op is fixed_4=6 & form2op { build form2op; } # TODO actually check cond
+:^immop is fixed_4=5 & immop { build immop; }
