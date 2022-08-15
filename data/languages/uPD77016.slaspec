@@ -452,32 +452,32 @@ immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 unimpl
 # br
 # JMP imm
 # JMP (Branch): Jump
-branch:"JMP" BranchAddr is opcode_2=3 & flag_25=0 & BranchAddr unimpl
+branch:"JMP" BranchAddr is opcode_2=3 & flag_25=0 & BranchAddr { goto BranchAddr; }
 
 # call
 # CALL imm
 # CALL (Branch): Subroutine call
-branch:"CALL" BranchAddr is opcode_2=3 & flag_25=1 & BranchAddr unimpl
+branch:"CALL" BranchAddr is opcode_2=3 & flag_25=1 & BranchAddr { STK = inst_next; call BranchAddr; }
 
 # jp
 # JMP dp
 # JREG (Branch): Register indirect jump
-branch:"JREG" dp is opcode_2=2 & flag_25=0 & dp unimpl
+branch:"JREG" dp is opcode_2=2 & flag_25=0 & dp { goto [dp]; }
 
 # callr
 # CALL dp
 # CREG (Branch): Register indirect subroutine call
-branch:"CREG" dp is opcode_2=2 & flag_25=1 & dp unimpl
+branch:"CREG" dp is opcode_2=2 & flag_25=1 & dp { call [dp]; }
 
 # ret
 # RET
 # RET (Branch): Return
-branch:"RET" is opcode_2=1 & flag_25=0 unimpl
+branch:"RET" is opcode_2=1 & flag_25=0 { return [STK]; }
 
 # reti
 # RETI
 # RETI (Branch): Interrupt return
-branch:"RETI" is opcode_2=1 & flag_25=1 unimpl
+branch:"RETI" is opcode_2=1 & flag_25=1 { return [STK]; }
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-8. Hardware Loop Instruction Format
