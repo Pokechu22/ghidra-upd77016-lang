@@ -16,25 +16,283 @@
   </register_data>
   -->
   <default_symbols>
-    <!-- Exception vectors -->
-    <symbol name="RST0" address="inst:0000" entry="true"/>
-    <symbol name="RST1" address="inst:0002" entry="true"/> <!-- Stack under/overflow -->
-    <symbol name="RST2" address="inst:0004" entry="true"/>
-    <symbol name="RST3" address="inst:0006" entry="true"/>
-    <symbol name="RST4" address="inst:0008" entry="true"/>
-    <symbol name="RST5" address="inst:000a" entry="true"/> <!-- Accelerator address overflow -->
-    <symbol name="RST6" address="inst:000c" entry="true"/>
-    <symbol name="RST7" address="inst:000e" entry="true"/> <!-- External interrupt (from CPU) -->
+    <!-- Interrupt vectors (U15807EJ2V0UM00.pdf page 80, 4.4.4 Interrupts) -->
+    <symbol name="Reset" address="inst:0200" entry="true"/>
+    <symbol name="Int0" address="inst:0210" entry="true"/>
+    <symbol name="Int1" address="inst:0214" entry="true"/>
+    <symbol name="Int2" address="inst:0218" entry="true"/>
+    <symbol name="Int3" address="inst:021C" entry="true"/>
+    <symbol name="Int4" address="inst:0220" entry="true"/>
+    <symbol name="Int5" address="inst:0224" entry="true"/>
+    <symbol name="Int6" address="inst:0228" entry="true"/>
+    <symbol name="Int7" address="inst:022C" entry="true"/>
+    <symbol name="Int8" address="inst:0230" entry="true"/>
+    <symbol name="Int9" address="inst:0234" entry="true"/>
+    <symbol name="Int10" address="inst:0238" entry="true"/>
+    <symbol name="Int11" address="inst:023C" entry="true"/>
 
-    <!-- Hardware registers - some from https://github.com/dolphin-emu/dolphin/blob/0b18f8ae55a21d8446083b92a6666199a478b0fe/Source/Core/Core/DSP/DSPCore.h#L136-L170 and https://github.com/dolphin-emu/dolphin/blob/ffdc8538a162b1ca56e3943c5a78c02358053b2a/Source/Core/Core/DSP/DSPTables.cpp#L333-L433 -->
-    <!-- ADPCM coefficients -->
+    <!-- Peripheral registers (U15807EJ2V0UM00.pdf pages 129-131, 5.2 Peripheral Registers) -->
+    <!-- These exist in both the X and Y data spaces. -->
+
+    <!-- TSIO (SIO1) -->
+    <symbol name="TSDT" address="data_x:3800" /> <!-- Also SDT1; TDM serial data register/serial data register 1 -->
+    <symbol name="SST1" address="data_x:3801" /> <!-- Serial status register 1 -->
+    <symbol name="TSST" address="data_x:3802" /> <!-- TDM serial status register -->
+    <symbol name="TFMT" address="data_x:3803" /> <!-- TDM frame format register -->
+    <symbol name="TTXL" address="data_x:3804" /> <!-- TDM transmit slot register (lower) -->
+    <symbol name="TTXH" address="data_x:3805" /> <!-- TDM transmit slot register (higher) -->
+    <symbol name="TRXL" address="data_x:3806" /> <!-- TDM receive slot register (lower) -->
+    <symbol name="TRXH" address="data_x:3807" /> <!-- TDM receive slot register (higher) -->
+    <!-- ASIO (SIO2) -->
+    <symbol name="ASDT" address="data_x:3810" /> <!-- Also SDT2; Audio serial data register/Serial data register 2 -->
+    <symbol name="SST2" address="data_x:3811" /> <!-- Serial status register 2 -->
+    <symbol name="ASST" address="data_x:3812" /> <!-- Audio serial status register -->
+    <!-- HIO -->
+    <symbol name="HDT" address="data_x:3820" /> <!-- Host interface data register -->
+    <symbol name="HST" address="data_x:3821" /> <!-- Host interface status register -->
+    <!-- MIO -->
+    <symbol name="MDT" address="data_x:3840" /> <!-- Memory data register -->
+    <symbol name="MSHW" address="data_x:3841" /> <!-- Memory interface setup/hold width setting register -->
+    <symbol name="MCST" address="data_x:3842" /> <!-- Memory interface control/status register -->
+    <symbol name="MWAIT" address="data_x:3843" /> <!-- Memory interface wait register -->
+    <symbol name="MIDX" address="data_x:3844" /> <!-- Direct access index register -->
+    <symbol name="MADRLI" address="data_x:3845" /> <!-- Start address register (lower) for memory interface input -->
+    <symbol name="MADRHI" address="data_x:3846" /> <!-- Start address register (higher) for memory interface input -->
+    <symbol name="MOFSI" address="data_x:3847" /> <!-- Line offset register for memory interface input -->
+    <symbol name="MLENI" address="data_x:3848" /> <!-- Line length register for memory interface input -->
+    <symbol name="MADRLO" address="data_x:3849" /> <!-- Start address register (lower) for memory interface output -->
+    <symbol name="MADRHO" address="data_x:384A" /> <!-- Start address register (higher) for memory interface output -->
+    <symbol name="MOFSO" address="data_x:384B" /> <!-- Line offset register for memory interface output -->
+    <symbol name="MLENO" address="data_x:384C" /> <!-- Line length register for memory interface output -->
+    <!-- PMT ch0 -->
+    <symbol name="PMSA0" address="data_x:3850" /> <!-- PMT status address register 0 -->
+    <symbol name="PMS0" address="data_x:3851" /> <!-- PMT size register 0 -->
+    <symbol name="PMC0" address="data_x:3852" /> <!-- PMT control register 0 -->
+    <symbol name="PMP0" address="data_x:3853" /> <!-- PMT address pointer 0 -->
+    <!-- PMT ch1 -->
+    <symbol name="PMSA1" address="data_x:3854" /> <!-- PMT status address register 1 -->
+    <symbol name="PMS1" address="data_x:3855" /> <!-- PMT size register 1 -->
+    <symbol name="PMC1" address="data_x:3856" /> <!-- PMT control register 1 -->
+    <symbol name="PMP1" address="data_x:3857" /> <!-- PMT address pointer 1 -->
+    <!-- PMT ch2 -->
+    <symbol name="PMSA2" address="data_x:3858" /> <!-- PMT status address register 2 -->
+    <symbol name="PMS2" address="data_x:3859" /> <!-- PMT size register 2 -->
+    <symbol name="PMC2" address="data_x:385A" /> <!-- PMT control register 2 -->
+    <symbol name="PMP2" address="data_x:385B" /> <!-- PMT address pointer 2 -->
+    <!-- PMT ch3 -->
+    <symbol name="PMSA3" address="data_x:385C" /> <!-- PMT status address register 3 -->
+    <symbol name="PMS3" address="data_x:385D" /> <!-- PMT size register 3 -->
+    <symbol name="PMC3" address="data_x:385E" /> <!-- PMT control register 3 -->
+    <symbol name="PMP3" address="data_x:385F" /> <!-- PMT address pointer 3 -->
+    <!-- PMT ch4 -->
+    <symbol name="PMSA4" address="data_x:3860" /> <!-- PMT status address register 4 -->
+    <symbol name="PMS4" address="data_x:3861" /> <!-- PMT size register 4 -->
+    <symbol name="PMC4" address="data_x:3862" /> <!-- PMT control register 4 -->
+    <symbol name="PMP4" address="data_x:3863" /> <!-- PMT address pointer 4 -->
+    <!-- PMT ch5 -->
+    <symbol name="PMSA5" address="data_x:3864" /> <!-- PMT status address register 5 -->
+    <symbol name="PMS5" address="data_x:3865" /> <!-- PMT size register 5 -->
+    <symbol name="PMC5" address="data_x:3866" /> <!-- PMT control register 5 -->
+    <symbol name="PMP5" address="data_x:3867" /> <!-- PMT address pointer 5 -->
+    <!-- PMT ch6 -->
+    <symbol name="PMSA6" address="data_x:3868" /> <!-- PMT status address register 6 -->
+    <symbol name="PMS6" address="data_x:3869" /> <!-- PMT size register 6 -->
+    <symbol name="PMC6" address="data_x:386A" /> <!-- PMT control register 6 -->
+    <symbol name="PMP6" address="data_x:386B" /> <!-- PMT address pointer 6 -->
+    <!-- PMT ch7 -->
+    <symbol name="PMSA7" address="data_x:386C" /> <!-- PMT start address register 7 -->
+    <symbol name="PMS7" address="data_x:386D" /> <!-- PMT size register 7 -->
+    <symbol name="PMC7" address="data_x:386E" /> <!-- PMT control register 7 -->
+    <symbol name="PMP7" address="data_x:386F" /> <!-- PMT address pointer 7 -->
+    <!-- PIO -->
+    <symbol name="PDT0" address="data_x:3870" /> <!-- Port data register 0 -->
+    <symbol name="PCD0" address="data_x:3871" /> <!-- Port command register 0 -->
+    <symbol name="PDT1" address="data_x:3872" /> <!-- Port data register 1 -->
+    <symbol name="PCD1" address="data_x:3873" /> <!-- Port command register 1 -->
+    <symbol name="PDT2" address="data_x:3874" /> <!-- Port data register 2 -->
+    <symbol name="PCD2" address="data_x:3875" /> <!-- Port command register 2 -->
+    <symbol name="PDT3" address="data_x:3876" /> <!-- Port data register 3 -->
+    <symbol name="PCD3" address="data_x:3877" /> <!-- Port command register 3 -->
+    <!-- Peripheral STOP mode -->
+    <symbol name="POWC1" address="data_x:387A" /> <!-- Power control register -->
+    <symbol name="POWC2" address="data_x:387B" /> <!-- Power control register -->
+    <!-- INTC -->
+    <symbol name="ICR0" address="data_x:3880" /> <!-- Interrupt control register 0 -->
+    <symbol name="ICR1" address="data_x:3881" /> <!-- Interrupt control register 1 -->
+    <symbol name="ICR2" address="data_x:3882" /> <!-- Interrupt control register 2 -->
+    <symbol name="ICR3" address="data_x:3883" /> <!-- Interrupt control register 3 -->
+    <symbol name="ICR4" address="data_x:3884" /> <!-- Interrupt control register 4 -->
+    <symbol name="ICR5" address="data_x:3885" /> <!-- Interrupt control register 5 -->
+    <symbol name="ICR6" address="data_x:3886" /> <!-- Interrupt control register 6 -->
+    <symbol name="ICR7" address="data_x:3887" /> <!-- Interrupt control register 7 -->
+    <symbol name="ICR8" address="data_x:3888" /> <!-- Interrupt control register 8 -->
+    <symbol name="ICR9" address="data_x:3889" /> <!-- Interrupt control register 9 -->
+    <symbol name="ICR10" address="data_x:388A" /> <!-- Interrupt control register 10 -->
+    <symbol name="ICR11" address="data_x:388B" /> <!-- Interrupt control register 11 -->
+    <!-- TIM0 -->
+    <symbol name="TIR0" address="data_x:3890" /> <!-- Timer initialization register 0 -->
+    <symbol name="TCR0" address="data_x:3891" /> <!-- Timer count register 0 -->
+    <symbol name="TCSR0" address="data_x:3892" /> <!-- Timer control register 0 -->
+    <!-- TIM1 -->
+    <symbol name="TIR1" address="data_x:3894" /> <!-- Timer initialization register 1 -->
+    <symbol name="TCR1" address="data_x:3895" /> <!-- Timer count register 1 -->
+    <symbol name="TCSR1" address="data_x:3896" /> <!-- Timer control register 1 -->
+    <!-- IMC -->
+    <symbol name="CEFR" address="data_x:38A0" /> <!-- Correction enable flag register -->
+    <symbol name="CPR0" address="data_x:38A1" /> <!-- Correction page register 0 -->
+    <symbol name="CAR0" address="data_x:38A2" /> <!-- Correction address register 0 -->
+    <symbol name="CLIR0" address="data_x:38A3" /> <!-- Correction instruction code register (higher) 0 -->
+    <symbol name="CUIR0" address="data_x:38A4" /> <!-- Correction instruction code register (lower) 0 -->
+    <symbol name="CPR1" address="data_x:38A5" /> <!-- Correction page register 1 -->
+    <symbol name="CAR1" address="data_x:38A6" /> <!-- Correction address register 1 -->
+    <symbol name="CLIR1" address="data_x:38A7" /> <!-- Correction instruction code register (higher) 1 -->
+    <symbol name="CUIR1" address="data_x:38A8" /> <!-- Correction instruction code register (lower) 1 -->
+    <!-- CLKC -->
+    <symbol name="CLKC" address="data_x:38B0" /> <!-- Clock control register -->
+    <!-- Page Register -->
+    <symbol name="IPR" address="data_x:38C0" /> <!-- Instruction paging register -->
+    <symbol name="DPR" address="data_x:38C1" /> <!-- Data paging register -->
+    <!-- Additional IO -->
+    <!-- "Available in μPD77213 only. This is a reserved area in the μPD77210." -->
+    <symbol name="APCR" address="data_x:38D0" /> <!-- Expansion interface control register -->
+
+    <!-- TSIO (SIO1) -->
+    <symbol name="TSDT" address="data_y:3800" /> <!-- Also SDT1; TDM serial data register/serial data register 1 -->
+    <symbol name="SST1" address="data_y:3801" /> <!-- Serial status register 1 -->
+    <symbol name="TSST" address="data_y:3802" /> <!-- TDM serial status register -->
+    <symbol name="TFMT" address="data_y:3803" /> <!-- TDM frame format register -->
+    <symbol name="TTXL" address="data_y:3804" /> <!-- TDM transmit slot register (lower) -->
+    <symbol name="TTXH" address="data_y:3805" /> <!-- TDM transmit slot register (higher) -->
+    <symbol name="TRXL" address="data_y:3806" /> <!-- TDM receive slot register (lower) -->
+    <symbol name="TRXH" address="data_y:3807" /> <!-- TDM receive slot register (higher) -->
+    <!-- ASIO (SIO2) -->
+    <symbol name="ASDT" address="data_y:3810" /> <!-- Also SDT2; Audio serial data register/Serial data register 2 -->
+    <symbol name="SST2" address="data_y:3811" /> <!-- Serial status register 2 -->
+    <symbol name="ASST" address="data_y:3812" /> <!-- Audio serial status register -->
+    <!-- HIO -->
+    <symbol name="HDT" address="data_y:3820" /> <!-- Host interface data register -->
+    <symbol name="HST" address="data_y:3821" /> <!-- Host interface status register -->
+    <!-- MIO -->
+    <symbol name="MDT" address="data_y:3840" /> <!-- Memory data register -->
+    <symbol name="MSHW" address="data_y:3841" /> <!-- Memory interface setup/hold width setting register -->
+    <symbol name="MCST" address="data_y:3842" /> <!-- Memory interface control/status register -->
+    <symbol name="MWAIT" address="data_y:3843" /> <!-- Memory interface wait register -->
+    <symbol name="MIDX" address="data_y:3844" /> <!-- Direct access index register -->
+    <symbol name="MADRLI" address="data_y:3845" /> <!-- Start address register (lower) for memory interface input -->
+    <symbol name="MADRHI" address="data_y:3846" /> <!-- Start address register (higher) for memory interface input -->
+    <symbol name="MOFSI" address="data_y:3847" /> <!-- Line offset register for memory interface input -->
+    <symbol name="MLENI" address="data_y:3848" /> <!-- Line length register for memory interface input -->
+    <symbol name="MADRLO" address="data_y:3849" /> <!-- Start address register (lower) for memory interface output -->
+    <symbol name="MADRHO" address="data_y:384A" /> <!-- Start address register (higher) for memory interface output -->
+    <symbol name="MOFSO" address="data_y:384B" /> <!-- Line offset register for memory interface output -->
+    <symbol name="MLENO" address="data_y:384C" /> <!-- Line length register for memory interface output -->
+    <!-- PMT ch0 -->
+    <symbol name="PMSA0" address="data_y:3850" /> <!-- PMT status address register 0 -->
+    <symbol name="PMS0" address="data_y:3851" /> <!-- PMT size register 0 -->
+    <symbol name="PMC0" address="data_y:3852" /> <!-- PMT control register 0 -->
+    <symbol name="PMP0" address="data_y:3853" /> <!-- PMT address pointer 0 -->
+    <!-- PMT ch1 -->
+    <symbol name="PMSA1" address="data_y:3854" /> <!-- PMT status address register 1 -->
+    <symbol name="PMS1" address="data_y:3855" /> <!-- PMT size register 1 -->
+    <symbol name="PMC1" address="data_y:3856" /> <!-- PMT control register 1 -->
+    <symbol name="PMP1" address="data_y:3857" /> <!-- PMT address pointer 1 -->
+    <!-- PMT ch2 -->
+    <symbol name="PMSA2" address="data_y:3858" /> <!-- PMT status address register 2 -->
+    <symbol name="PMS2" address="data_y:3859" /> <!-- PMT size register 2 -->
+    <symbol name="PMC2" address="data_y:385A" /> <!-- PMT control register 2 -->
+    <symbol name="PMP2" address="data_y:385B" /> <!-- PMT address pointer 2 -->
+    <!-- PMT ch3 -->
+    <symbol name="PMSA3" address="data_y:385C" /> <!-- PMT status address register 3 -->
+    <symbol name="PMS3" address="data_y:385D" /> <!-- PMT size register 3 -->
+    <symbol name="PMC3" address="data_y:385E" /> <!-- PMT control register 3 -->
+    <symbol name="PMP3" address="data_y:385F" /> <!-- PMT address pointer 3 -->
+    <!-- PMT ch4 -->
+    <symbol name="PMSA4" address="data_y:3860" /> <!-- PMT status address register 4 -->
+    <symbol name="PMS4" address="data_y:3861" /> <!-- PMT size register 4 -->
+    <symbol name="PMC4" address="data_y:3862" /> <!-- PMT control register 4 -->
+    <symbol name="PMP4" address="data_y:3863" /> <!-- PMT address pointer 4 -->
+    <!-- PMT ch5 -->
+    <symbol name="PMSA5" address="data_y:3864" /> <!-- PMT status address register 5 -->
+    <symbol name="PMS5" address="data_y:3865" /> <!-- PMT size register 5 -->
+    <symbol name="PMC5" address="data_y:3866" /> <!-- PMT control register 5 -->
+    <symbol name="PMP5" address="data_y:3867" /> <!-- PMT address pointer 5 -->
+    <!-- PMT ch6 -->
+    <symbol name="PMSA6" address="data_y:3868" /> <!-- PMT status address register 6 -->
+    <symbol name="PMS6" address="data_y:3869" /> <!-- PMT size register 6 -->
+    <symbol name="PMC6" address="data_y:386A" /> <!-- PMT control register 6 -->
+    <symbol name="PMP6" address="data_y:386B" /> <!-- PMT address pointer 6 -->
+    <!-- PMT ch7 -->
+    <symbol name="PMSA7" address="data_y:386C" /> <!-- PMT start address register 7 -->
+    <symbol name="PMS7" address="data_y:386D" /> <!-- PMT size register 7 -->
+    <symbol name="PMC7" address="data_y:386E" /> <!-- PMT control register 7 -->
+    <symbol name="PMP7" address="data_y:386F" /> <!-- PMT address pointer 7 -->
+    <!-- PIO -->
+    <symbol name="PDT0" address="data_y:3870" /> <!-- Port data register 0 -->
+    <symbol name="PCD0" address="data_y:3871" /> <!-- Port command register 0 -->
+    <symbol name="PDT1" address="data_y:3872" /> <!-- Port data register 1 -->
+    <symbol name="PCD1" address="data_y:3873" /> <!-- Port command register 1 -->
+    <symbol name="PDT2" address="data_y:3874" /> <!-- Port data register 2 -->
+    <symbol name="PCD2" address="data_y:3875" /> <!-- Port command register 2 -->
+    <symbol name="PDT3" address="data_y:3876" /> <!-- Port data register 3 -->
+    <symbol name="PCD3" address="data_y:3877" /> <!-- Port command register 3 -->
+    <!-- Peripheral STOP mode -->
+    <symbol name="POWC1" address="data_y:387A" /> <!-- Power control register -->
+    <symbol name="POWC2" address="data_y:387B" /> <!-- Power control register -->
+    <!-- INTC -->
+    <symbol name="ICR0" address="data_y:3880" /> <!-- Interrupt control register 0 -->
+    <symbol name="ICR1" address="data_y:3881" /> <!-- Interrupt control register 1 -->
+    <symbol name="ICR2" address="data_y:3882" /> <!-- Interrupt control register 2 -->
+    <symbol name="ICR3" address="data_y:3883" /> <!-- Interrupt control register 3 -->
+    <symbol name="ICR4" address="data_y:3884" /> <!-- Interrupt control register 4 -->
+    <symbol name="ICR5" address="data_y:3885" /> <!-- Interrupt control register 5 -->
+    <symbol name="ICR6" address="data_y:3886" /> <!-- Interrupt control register 6 -->
+    <symbol name="ICR7" address="data_y:3887" /> <!-- Interrupt control register 7 -->
+    <symbol name="ICR8" address="data_y:3888" /> <!-- Interrupt control register 8 -->
+    <symbol name="ICR9" address="data_y:3889" /> <!-- Interrupt control register 9 -->
+    <symbol name="ICR10" address="data_y:388A" /> <!-- Interrupt control register 10 -->
+    <symbol name="ICR11" address="data_y:388B" /> <!-- Interrupt control register 11 -->
+    <!-- TIM0 -->
+    <symbol name="TIR0" address="data_y:3890" /> <!-- Timer initialization register 0 -->
+    <symbol name="TCR0" address="data_y:3891" /> <!-- Timer count register 0 -->
+    <symbol name="TCSR0" address="data_y:3892" /> <!-- Timer control register 0 -->
+    <!-- TIM1 -->
+    <symbol name="TIR1" address="data_y:3894" /> <!-- Timer initialization register 1 -->
+    <symbol name="TCR1" address="data_y:3895" /> <!-- Timer count register 1 -->
+    <symbol name="TCSR1" address="data_y:3896" /> <!-- Timer control register 1 -->
+    <!-- IMC -->
+    <symbol name="CEFR" address="data_y:38A0" /> <!-- Correction enable flag register -->
+    <symbol name="CPR0" address="data_y:38A1" /> <!-- Correction page register 0 -->
+    <symbol name="CAR0" address="data_y:38A2" /> <!-- Correction address register 0 -->
+    <symbol name="CLIR0" address="data_y:38A3" /> <!-- Correction instruction code register (higher) 0 -->
+    <symbol name="CUIR0" address="data_y:38A4" /> <!-- Correction instruction code register (lower) 0 -->
+    <symbol name="CPR1" address="data_y:38A5" /> <!-- Correction page register 1 -->
+    <symbol name="CAR1" address="data_y:38A6" /> <!-- Correction address register 1 -->
+    <symbol name="CLIR1" address="data_y:38A7" /> <!-- Correction instruction code register (higher) 1 -->
+    <symbol name="CUIR1" address="data_y:38A8" /> <!-- Correction instruction code register (lower) 1 -->
+    <!-- CLKC -->
+    <symbol name="CLKC" address="data_y:38B0" /> <!-- Clock control register -->
+    <!-- Page Register -->
+    <symbol name="IPR" address="data_y:38C0" /> <!-- Instruction paging register -->
+    <symbol name="DPR" address="data_y:38C1" /> <!-- Data paging register -->
+    <!-- Additional IO -->
+    <!-- "Available in μPD77213 only. This is a reserved area in the μPD77210." -->
+    <symbol name="APCR" address="data_y:38D0" /> <!-- Expansion interface control register -->
   </default_symbols>
+  <!-- U15807EJ2V0UM00.pdf, page 93 Figure 4-23. Data Memory Map -->
   <default_memory_blocks>
     <!-- Length is in bytes, not processor words.  However, the address IS in processor words. -->
     <memory_block name="iram" start_address="inst:0x0000" length="0x2000" mode="rwx" initialized="false" />
-    <memory_block name="irom" start_address="inst:0x8000" length="0x2000" mode="rx" initialized="false" /> <!-- dsp_rom.bin -->
+    <memory_block name="dram1_x"  start_address="data_x:0x0000" length="0x7000" mode="rw" initialized="false" />
+    <memory_block name="periph_x" start_address="data_x:0x3800" length="0x200" mode="rwv" initialized="false" />
+    <memory_block name="dram2_x"  start_address="data_x:0x4000" length="0x8000" mode="rw" initialized="false" />
+    <memory_block name="paging_x" start_address="data_x:0x8000" length="0x10000" mode="rw" initialized="false" />
+    <memory_block name="dram1_y"  start_address="data_y:0x0000" length="0x7000" mode="rw" initialized="false" />
+    <memory_block name="periph_y" start_address="data_y:0x3800" length="0x200" mode="rwv" initialized="false" />
+    <memory_block name="dram2_y"  start_address="data_y:0x4000" length="0x8000" mode="rw" initialized="false" />
+    <memory_block name="paging_y" start_address="data_y:0x8000" length="0x10000" mode="rw" initialized="false" />
   </default_memory_blocks>
-  <!--<volatile outputop="write_volatile" inputop="read_volatile">
-    <range space="data" first="0xff00" last="0xffff"/>
-  </volatile>-->
+  <volatile outputop="write_volatile" inputop="read_volatile">
+    <range space="data_x" first="0x3800" last="0x3fff"/>
+    <range space="data_y" first="0x3800" last="0x3fff"/>
+  </volatile>
 </processor_spec>
