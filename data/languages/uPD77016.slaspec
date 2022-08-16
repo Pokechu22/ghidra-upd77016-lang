@@ -406,12 +406,15 @@ form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 {
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-3. Immediate Value Operation Instruction Format
+# Opcode has been changed to start at 8 instead of 0, since that seems to be what's used in
+# practice. Is it possible that the order in the manual counts down from 15 instead of up from 0?
+# Or, they could be this way to match with form3op (since there are no immediate multiply ops)
 #---------------------------------------------------------------------------------------------------
 
 # op2 = op1 + imm
 # ro' = ro + imm
 # IADD (Binomial operation): Immediate add
-immop:"IADD" op2 "=" op1 "+" imm is opcode=0 & op1 & op2 & imm {
+immop:"IADD" op2 "=" op1 "+" imm is opcode=8 & op1 & op2 & imm {
 	op2 = op1 + imm;
 }
 
@@ -419,49 +422,49 @@ immop:"IADD" op2 "=" op1 "+" imm is opcode=0 & op1 & op2 & imm {
 # ro' = ro – imm
 # ISUB (Binomial operation): Immediate sub
 # (op3 is a typo in the original manual)
-immop:"ISUB" op2 "=" op1 "-" imm is opcode=1 & op1 & op2 & imm {
+immop:"ISUB" op2 "=" op1 "-" imm is opcode=9 & op1 & op2 & imm {
 	op2 = op1 - imm;
 }
 
 # op2 = op1 & imm
 # ro' = ro & imm
 # IAND (Binomial operation): Immediate AND
-immop:"IAND" op2 "=" op1 "&" imm is opcode=2 & op1 & op2 & imm {
+immop:"IAND" op2 "=" op1 "&" imm is opcode=10 & op1 & op2 & imm {
 	op2 = op1 & imm;
 }
 
 # op2 = op1 | imm
 # ro' = ro | imm
 # IOR (Binomial operation): Immediate OR
-immop:"IOR" op2 "=" op1 "|" imm is opcode=3 & op1 & op2 & imm {
+immop:"IOR" op2 "=" op1 "|" imm is opcode=11 & op1 & op2 & imm {
 	op2 = op1 | imm;
 }
 
 # op2 = op1 ^ imm
 # ro' = ro /\ imm
 # IXOR (Binomial operation): Immediate exclusive OR
-immop:"IXOR" op2 "=" op1 "^" imm is opcode=4 & op1 & op2 & imm {
+immop:"IXOR" op2 "=" op1 "^" imm is opcode=12 & op1 & op2 & imm {
 	op2 = op1 ^ imm;
 }
 
 # op2 = op1 sra imm
 # ro' = ro SRA imm
 # ISRA (Binomial operation): Immediate arithmetic right shift
-immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=5 & op1 & op2 & imm {
+immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=13 & op1 & op2 & imm {
 	op2 = op1 s>> imm;
 }
 
 # op2 = op1 srl imm
 # ro' = ro SRL imm
 # ISRL (Binomial operation): Immediate logical right shift
-immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=6 & op1 & op2 & imm {
+immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=14 & op1 & op2 & imm {
 	op2 = op1 >> imm;
 }
 
 # op2 = op1 sll imm
 # ro' = ro SLL imm
 # ISLL (Binomial operation): Immediate logical left shift
-immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=7 & op1 & op2 & imm {
+immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=15 & op1 & op2 & imm {
 	op2 = op1 << imm;
 }
 
