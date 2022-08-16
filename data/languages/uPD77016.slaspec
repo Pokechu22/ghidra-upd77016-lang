@@ -109,12 +109,16 @@ define token opbyte (32)
 	dy = (16, 16)
 
 	dpx = (14, 15)
+	dnx = (14, 15)
+	dmx = (14, 14) # HACK
 	modix = (11, 13)
 	rx = (8, 10)
 	rxh = (8, 10)
 	regx = (8, 10) # TODO: Difference between these?
 
 	dpy = (6, 7)
+	dny = (6, 7)
+	dmy = (6, 6) # HACK
 	modiy = (3, 5)
 	ry = (0, 2)
 	ryh = (0, 2)
@@ -185,6 +189,13 @@ BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export 
 LoopEnd: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
 
 attach variables [ dp ] [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
+attach variables [ dpx ] [ DP0 DP1 DP2 DP3 ];
+attach variables [ dnx ] [ DN0 DN1 DN2 DN3 ];
+attach variables [ dpy ] [ DP4 DP5 DP6 DP7 ];
+attach variables [ dny ] [ DN4 DN5 DN6 DN7 ];
+# This is a hack to ensure that DMX/DMY show up in the operands
+attach variables [ dmx ] [ DMX DMX ];
+attach variables [ dmy ] [ DMY DMY ];
 
 #---------------------------------------------------------------------------------------------------
 # Instructions
@@ -483,8 +494,72 @@ immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=15 & op1 & op2 & imm {
 # so that the l bits are zero.
 #---------------------------------------------------------------------------------------------------
 
-# Partial load/store -> Section load/store?
-loadstore:"LSSE" is opcode_2=3 unimpl
+# These are used for parallel load/store instructions (LSPA), as well as LSSE. LSPA is implemented
+# at the end of this file when creating the root instruction table.
+Dpx:"*"^dpx is dpx & modix!=6 { export *[data_x]:2 dpx; }
+Dpx:"*!"^dpx is dpx & modix=6 { temp:2 = ~dpx; export *[data_x]:2 temp; }
+
+# This table executes the change to dpx, but does not export the old value of dpx.
+# It does show Dpx with formatting, though.
+Modix:Dpx is Dpx & modix=1 {}
+Modix:Dpx^"++" is Dpx & dpx & modix=2 { dpx = dpx + 1; }
+Modix:Dpx^"--" is Dpx & dpx & modix=3 { dpx = dpx - 1; }
+# Adjusted to show dnx
+Modix:Dpx^"##" dnx is Dpx & dpx & dnx & modix=4 { dpx = dpx + dnx; }
+# TODO: Handle actual wrapping
+Modix:Dpx^"%%" dnx, dmx is Dpx & dpx & dnx & dmx { dpx = dpx + dnx; }
+# Assume that the bit reverse only applies to the value of dpx, not this calculation
+Modix:Dpx^"##" dnx is Dpx & dpx & dnx & modix=6 { dpx = dpx + dnx; }
+
+Dpy:"*"^dpy is dpy & modiy!=6 { export *[data_y]:2 dpy; }
+Dpy:"*!"^dpy is dpy & modiy=6 { temp:2 = ~dpy; export *[data_y]:2 temp; }
+
+Modiy:Dpy is Dpy & modiy=1 {}
+Modiy:Dpy^"++" is Dpy & dpy & modiy=2 { dpy = dpy + 1; }
+Modiy:Dpy^"--" is Dpy & dpy & modiy=3 { dpy = dpy - 1; }
+# Adjusted to show dny
+Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=4 { dpy = dpy + dny; }
+# TODO: Handle actual wrapping
+Modiy:Dpy^"%%" dny, dmy is Dpy & dpy & dny & dmy { dpy = dpy + dny; }
+# Assume that the bit reverse only applies to the value of dpy, not this calculation
+Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=6 { dpy = dpy + dny; }
+
+# Partial load/store
+# LSSE (Load/Store): Section load/store
+
+PartialXAct:"NOPX" is modix=0 {}
+with : sufx=0b001 {
+PartialXAct:Modix "=" regl is regl & d=0 & Modix & Dpx { Dpx = regl; build Modix; }
+PartialXAct:regl "=" Modix is regl & d=1 & Modix & Dpx { regl = Dpx; build Modix; }
+}
+with : sufx=0b010 {
+PartialXAct:Modix "=" regh is regh & d=0 & Modix & Dpx { Dpx = regh; build Modix; }
+PartialXAct:regh "=" Modix is regh & d=1 & Modix & Dpx { regh = Dpx; build Modix; }
+}
+with : sufx=0b100 {
+PartialXAct:Modix "=" rege is rege & d=0 & Modix & Dpx { Dpx = zext(rege); build Modix; }
+PartialXAct:rege "=" Modix is rege & d=1 & Modix & Dpx { rege = Dpx:1; build Modix; }
+}
+PartialXAct:regeh "=" Modix is sufx=0b110 & regeh & d=1 & Modix & Dpx { regeh = sext(Dpx); build Modix; }
+PartialXAct:reg "=" Modix is sufx=0b111 & reg & d=1 & Modix & Dpx { reg = sext(Dpx) << 16; build Modix; }
+
+PartialYAct:"NOPY" is modiy=0 {}
+with : sufy=0b001 {
+PartialYAct:Modiy "=" regl is regl & d=0 & Modiy & Dpy { Dpy = regl; build Modiy; }
+PartialYAct:regl "=" Modiy is regl & d=1 & Modiy & Dpy { regl = Dpy; build Modiy; }
+}
+with : sufy=0b010 {
+PartialYAct:Modiy "=" regh is regh & d=0 & Modiy & Dpy { Dpy = regh; build Modiy; }
+PartialYAct:regh "=" Modiy is regh & d=1 & Modiy & Dpy { regh = Dpy; build Modiy; }
+}
+with : sufy=0b100 {
+PartialYAct:Modiy "=" rege is rege & d=0 & Modiy & Dpy { Dpy = zext(rege); build Modiy; }
+PartialYAct:rege "=" Modiy is rege & d=1 & Modiy & Dpy { rege = Dpy:1; build Modiy; }
+}
+PartialYAct:regeh "=" Modiy is sufy=0b110 & regeh & d=1 & Modiy & Dpy { regeh = sext(Dpy); build Modiy; }
+PartialYAct:reg "=" Modiy is sufy=0b111 & reg & d=1 & Modiy & Dpy { reg = sext(Dpy) << 16; build Modiy; }
+
+loadstore:"LSSE" PartialXAct^";" PartialYAct is opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
 
 # Direct addressing load/store
 # dest = *addr OR *addr = source
