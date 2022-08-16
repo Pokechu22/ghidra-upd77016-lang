@@ -634,10 +634,10 @@ loadstore:"LSIM" reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg =
 
 # dest = rl OR rl = source
 # MOV (Inter-register transfer): Inter-register transfer
-inter:"MOV" source1 "=" dest1 is source1 & dest1 & flag_16=0 {
+inter:"MOV" dest1 "=" source1 is source1 & dest1 & flag_16=0 {
 	dest1 = source1;
 }
-inter:"MOV" source2 "=" dest2 is source2 & dest2 & flag_16=1 {
+inter:"MOV" dest2 "=" source2 is source2 & dest2 & flag_16=1 {
 	dest2 = source2;
 }
 
