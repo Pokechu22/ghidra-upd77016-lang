@@ -112,17 +112,21 @@ define token opbyte (32)
 	dnx = (14, 15)
 	dmx = (14, 14) # HACK
 	modix = (11, 13)
-	rx = (8, 10)
-	rxh = (8, 10)
-	regx = (8, 10) # TODO: Difference between these?
+	regx = (8, 10) # aka rx
+	regxl = (8, 10)
+	regxh = (8, 10) # aka rxh
+	regxe = (8, 10)
+	regxeh = (8, 10)
 
 	dpy = (6, 7)
 	dny = (6, 7)
 	dmy = (6, 6) # HACK
 	modiy = (3, 5)
-	ry = (0, 2)
-	ryh = (0, 2)
-	regy = (0, 2) # TODO: Difference between these?
+	regy = (0, 2) # aka ry
+	regyl = (0, 2)
+	regyh = (0, 2) # aka ryh
+	regye = (0, 2)
+	regyeh = (0, 2)
 
 	cond = (3, 6)
 	top = (0, 2)
@@ -165,12 +169,12 @@ define token opbyte (32)
 	fixed_rest = (0, 27)
 ;
 
-attach variables [ op0  op1  op2  op2_dupe top reg      ] [ R0   R1   R2   R3   R4   R5   R6   R7   ];
-attach variables [ op0l op1l op2l source1 dest2 rl regl ] [ R0L  R1L  R2L  R3L  R4L  R5L  R6L  R7L  ];
-attach variables [ op0h op1h op2h regh                  ] [ R0H  R1H  R2H  R3H  R4H  R5H  R6H  R7H  ];
-attach variables [ top_hl                               ] [ R0HL R1HL R2HL R3HL R4HL R5HL R6HL R7HL ];
-attach variables [ rege                                 ] [ R0E  R1E  R2E  R3E  R4E  R5E  R6E  R7E  ];
-attach variables [ regeh                                ] [ R0EH R1EH R2EH R3EH R4EH R5EH R6EH R7EH ];
+attach variables [ reg   regx   regy   op0  op1  op2  op2_dupe     top ] [ R0   R1   R2   R3   R4   R5   R6   R7   ];
+attach variables [ regl  regxl  regyl  op0l op1l op2l source1 dest2 rl ] [ R0L  R1L  R2L  R3L  R4L  R5L  R6L  R7L  ];
+attach variables [ regh  regxh  regyh  op0h op1h op2h                  ] [ R0H  R1H  R2H  R3H  R4H  R5H  R6H  R7H  ];
+attach variables [ rege  regxe  regye                                  ] [ R0E  R1E  R2E  R3E  R4E  R5E  R6E  R7E  ];
+attach variables [ regeh regxeh regyeh                                 ] [ R0EH R1EH R2EH R3EH R4EH R5EH R6EH R7EH ];
+attach variables [                                              top_hl ] [ R0HL R1HL R2HL R3HL R4HL R5HL R6HL R7HL ];
 
 # Note: sr the following registers are labeled as unconditional and only appear in A-5.
 # A-6 gives an extra bit for dest1, but that would require 32 underscores here, so we ignore that.
@@ -529,35 +533,35 @@ Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=6 { dpy = dpy + dny; }
 
 PartialXAct:"NOPX" is modix=0 {}
 with : sufx=0b001 {
-PartialXAct:Modix "=" regl is regl & d=0 & Modix & Dpx { Dpx = regl; build Modix; }
-PartialXAct:regl "=" Modix is regl & d=1 & Modix & Dpx { regl = Dpx; build Modix; }
+PartialXAct:Modix "=" regxl is regxl & d=0 & Modix & Dpx { Dpx = regxl; build Modix; }
+PartialXAct:regxl "=" Modix is regxl & d=1 & Modix & Dpx { regxl = Dpx; build Modix; }
 }
 with : sufx=0b010 {
-PartialXAct:Modix "=" regh is regh & d=0 & Modix & Dpx { Dpx = regh; build Modix; }
-PartialXAct:regh "=" Modix is regh & d=1 & Modix & Dpx { regh = Dpx; build Modix; }
+PartialXAct:Modix "=" regxh is regxh & d=0 & Modix & Dpx { Dpx = regxh; build Modix; }
+PartialXAct:regxh "=" Modix is regxh & d=1 & Modix & Dpx { regxh = Dpx; build Modix; }
 }
 with : sufx=0b100 {
-PartialXAct:Modix "=" rege is rege & d=0 & Modix & Dpx { Dpx = zext(rege); build Modix; }
-PartialXAct:rege "=" Modix is rege & d=1 & Modix & Dpx { rege = Dpx:1; build Modix; }
+PartialXAct:Modix "=" regxe is regxe & d=0 & Modix & Dpx { Dpx = zext(regxe); build Modix; }
+PartialXAct:regxe "=" Modix is regxe & d=1 & Modix & Dpx { regxe = Dpx:1; build Modix; }
 }
-PartialXAct:regeh "=" Modix is sufx=0b110 & regeh & d=1 & Modix & Dpx { regeh = sext(Dpx); build Modix; }
-PartialXAct:reg "=" Modix is sufx=0b111 & reg & d=1 & Modix & Dpx { reg = sext(Dpx) << 16; build Modix; }
+PartialXAct:regxeh "=" Modix is sufx=0b110 & regxeh & d=1 & Modix & Dpx { regxeh = sext(Dpx); build Modix; }
+PartialXAct:regx "=" Modix is sufx=0b111 & regx & d=1 & Modix & Dpx { regx = sext(Dpx) << 16; build Modix; }
 
 PartialYAct:"NOPY" is modiy=0 {}
 with : sufy=0b001 {
-PartialYAct:Modiy "=" regl is regl & d=0 & Modiy & Dpy { Dpy = regl; build Modiy; }
-PartialYAct:regl "=" Modiy is regl & d=1 & Modiy & Dpy { regl = Dpy; build Modiy; }
+PartialYAct:Modiy "=" regyl is regyl & d=0 & Modiy & Dpy { Dpy = regyl; build Modiy; }
+PartialYAct:regyl "=" Modiy is regyl & d=1 & Modiy & Dpy { regyl = Dpy; build Modiy; }
 }
 with : sufy=0b010 {
-PartialYAct:Modiy "=" regh is regh & d=0 & Modiy & Dpy { Dpy = regh; build Modiy; }
-PartialYAct:regh "=" Modiy is regh & d=1 & Modiy & Dpy { regh = Dpy; build Modiy; }
+PartialYAct:Modiy "=" regyh is regyh & d=0 & Modiy & Dpy { Dpy = regyh; build Modiy; }
+PartialYAct:regyh "=" Modiy is regyh & d=1 & Modiy & Dpy { regyh = Dpy; build Modiy; }
 }
 with : sufy=0b100 {
-PartialYAct:Modiy "=" rege is rege & d=0 & Modiy & Dpy { Dpy = zext(rege); build Modiy; }
-PartialYAct:rege "=" Modiy is rege & d=1 & Modiy & Dpy { rege = Dpy:1; build Modiy; }
+PartialYAct:Modiy "=" regye is regye & d=0 & Modiy & Dpy { Dpy = zext(regye); build Modiy; }
+PartialYAct:regye "=" Modiy is regye & d=1 & Modiy & Dpy { regye = Dpy:1; build Modiy; }
 }
-PartialYAct:regeh "=" Modiy is sufy=0b110 & regeh & d=1 & Modiy & Dpy { regeh = sext(Dpy); build Modiy; }
-PartialYAct:reg "=" Modiy is sufy=0b111 & reg & d=1 & Modiy & Dpy { reg = sext(Dpy) << 16; build Modiy; }
+PartialYAct:regyeh "=" Modiy is sufy=0b110 & regyeh & d=1 & Modiy & Dpy { regyeh = sext(Dpy); build Modiy; }
+PartialYAct:regy "=" Modiy is sufy=0b111 & regy & d=1 & Modiy & Dpy { regy = sext(Dpy) << 16; build Modiy; }
 
 loadstore:"LSSE" PartialXAct^";" PartialYAct is opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
 
