@@ -515,6 +515,7 @@ Modix:Dpx^"%%" dnx, dmx is Dpx & dpx & dnx & dmx { dpx = dpx + dnx; }
 # Assume that the bit reverse only applies to the value of dpx, not this calculation
 Modix:Dpx^"##" dnx is Dpx & dpx & dnx & modix=6 { dpx = dpx + dnx; }
 
+# The same thing also applies to Y.
 Dpy:"*"^dpy is dpy & modiy!=6 { export *[data_y]:2 dpy; }
 Dpy:"*!"^dpy is dpy & modiy=6 { temp:2 = ~dpy; export *[data_y]:2 temp; }
 
@@ -533,35 +534,35 @@ Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=6 { dpy = dpy + dny; }
 
 PartialXAct:"NOPX" is modix=0 {}
 with : sufx=0b001 {
-PartialXAct:Modix "=" regxl is regxl & d=0 & Modix & Dpx { Dpx = regxl; build Modix; }
-PartialXAct:regxl "=" Modix is regxl & d=1 & Modix & Dpx { regxl = Dpx; build Modix; }
+PartialXAct:Modix "=" regxl is regxl & dx=0 & Modix & Dpx { Dpx = regxl; build Modix; }
+PartialXAct:regxl "=" Modix is regxl & dx=1 & Modix & Dpx { regxl = Dpx; build Modix; }
 }
 with : sufx=0b010 {
-PartialXAct:Modix "=" regxh is regxh & d=0 & Modix & Dpx { Dpx = regxh; build Modix; }
-PartialXAct:regxh "=" Modix is regxh & d=1 & Modix & Dpx { regxh = Dpx; build Modix; }
+PartialXAct:Modix "=" regxh is regxh & dx=0 & Modix & Dpx { Dpx = regxh; build Modix; }
+PartialXAct:regxh "=" Modix is regxh & dx=1 & Modix & Dpx { regxh = Dpx; build Modix; }
 }
 with : sufx=0b100 {
-PartialXAct:Modix "=" regxe is regxe & d=0 & Modix & Dpx { Dpx = zext(regxe); build Modix; }
-PartialXAct:regxe "=" Modix is regxe & d=1 & Modix & Dpx { regxe = Dpx:1; build Modix; }
+PartialXAct:Modix "=" regxe is regxe & dx=0 & Modix & Dpx { Dpx = zext(regxe); build Modix; }
+PartialXAct:regxe "=" Modix is regxe & dx=1 & Modix & Dpx { regxe = Dpx:1; build Modix; }
 }
-PartialXAct:regxeh "=" Modix is sufx=0b110 & regxeh & d=1 & Modix & Dpx { regxeh = sext(Dpx); build Modix; }
-PartialXAct:regx "=" Modix is sufx=0b111 & regx & d=1 & Modix & Dpx { regx = sext(Dpx) << 16; build Modix; }
+PartialXAct:regxeh "=" Modix is sufx=0b110 & regxeh & dx=1 & Modix & Dpx { regxeh = sext(Dpx); build Modix; }
+PartialXAct:regx "=" Modix is sufx=0b111 & regx & dx=1 & Modix & Dpx { regx = sext(Dpx) << 16; build Modix; }
 
 PartialYAct:"NOPY" is modiy=0 {}
 with : sufy=0b001 {
-PartialYAct:Modiy "=" regyl is regyl & d=0 & Modiy & Dpy { Dpy = regyl; build Modiy; }
-PartialYAct:regyl "=" Modiy is regyl & d=1 & Modiy & Dpy { regyl = Dpy; build Modiy; }
+PartialYAct:Modiy "=" regyl is regyl & dy=0 & Modiy & Dpy { Dpy = regyl; build Modiy; }
+PartialYAct:regyl "=" Modiy is regyl & dy=1 & Modiy & Dpy { regyl = Dpy; build Modiy; }
 }
 with : sufy=0b010 {
-PartialYAct:Modiy "=" regyh is regyh & d=0 & Modiy & Dpy { Dpy = regyh; build Modiy; }
-PartialYAct:regyh "=" Modiy is regyh & d=1 & Modiy & Dpy { regyh = Dpy; build Modiy; }
+PartialYAct:Modiy "=" regyh is regyh & dy=0 & Modiy & Dpy { Dpy = regyh; build Modiy; }
+PartialYAct:regyh "=" Modiy is regyh & dy=1 & Modiy & Dpy { regyh = Dpy; build Modiy; }
 }
 with : sufy=0b100 {
-PartialYAct:Modiy "=" regye is regye & d=0 & Modiy & Dpy { Dpy = zext(regye); build Modiy; }
-PartialYAct:regye "=" Modiy is regye & d=1 & Modiy & Dpy { regye = Dpy:1; build Modiy; }
+PartialYAct:Modiy "=" regye is regye & dy=0 & Modiy & Dpy { Dpy = zext(regye); build Modiy; }
+PartialYAct:regye "=" Modiy is regye & dy=1 & Modiy & Dpy { regye = Dpy:1; build Modiy; }
 }
-PartialYAct:regyeh "=" Modiy is sufy=0b110 & regyeh & d=1 & Modiy & Dpy { regyeh = sext(Dpy); build Modiy; }
-PartialYAct:regy "=" Modiy is sufy=0b111 & regy & d=1 & Modiy & Dpy { regy = sext(Dpy) << 16; build Modiy; }
+PartialYAct:regyeh "=" Modiy is sufy=0b110 & regyeh & dy=1 & Modiy & Dpy { regyeh = sext(Dpy); build Modiy; }
+PartialYAct:regy "=" Modiy is sufy=0b111 & regy & dy=1 & Modiy & Dpy { regy = sext(Dpy) << 16; build Modiy; }
 
 loadstore:"LSSE" PartialXAct^";" PartialYAct is opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
 
