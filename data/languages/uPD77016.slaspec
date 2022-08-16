@@ -515,6 +515,10 @@ Modix:Dpx^"%%" dnx, dmx is Dpx & dpx & dnx & dmx { dpx = dpx + dnx; }
 # Assume that the bit reverse only applies to the value of dpx, not this calculation
 Modix:Dpx^"##" dnx is Dpx & dpx & dnx & modix=6 { dpx = dpx + dnx; }
 
+ParallelXAct:"NOPX" is modix=0 {}
+ParallelXAct:Modix "=" regxh is dx=0 & Modix & regxh & Dpx { Dpx = regxh; build Modix; }
+ParallelXAct:regx "=" Modix is dx=1 & Modix & regx & Dpx { regx = sext(Dpx) << 16; build Modix; }
+
 # The same thing also applies to Y.
 Dpy:"*"^dpy is dpy & modiy!=6 { export *[data_y]:2 dpy; }
 Dpy:"*!"^dpy is dpy & modiy=6 { temp:2 = ~dpy; export *[data_y]:2 temp; }
@@ -528,6 +532,10 @@ Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=4 { dpy = dpy + dny; }
 Modiy:Dpy^"%%" dny, dmy is Dpy & dpy & dny & dmy { dpy = dpy + dny; }
 # Assume that the bit reverse only applies to the value of dpy, not this calculation
 Modiy:Dpy^"##" dny is Dpy & dpy & dny & modiy=6 { dpy = dpy + dny; }
+
+ParallelYAct:"NOPX" is modiy=0 {}
+ParallelYAct:Modiy "=" regyh is dy=0 & Modiy & regyh & Dpy { Dpy = regyh; build Modiy; }
+ParallelYAct:regy "=" Modiy is dy=1 & Modiy & regy & Dpy { regy = sext(Dpy) << 16; build Modiy; }
 
 # Partial load/store
 # LSSE (Load/Store): Section load/store
@@ -794,8 +802,10 @@ condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (to
 # Merge the above together to form the root instruction table.
 #---------------------------------------------------------------------------------------------------
 
-:^form3op is fixed_1=1 & form3op { build form3op; }
-:^form2op is fixed_4=7 & form2op { build form2op; }
+:^form3op is fixed_1=1 & form3op & modix=0 & modiy=0 { build form3op; }
+:"LSPA+"^form3op ";" ParallelXAct ";" ParallelYAct is fixed_1=1 & form3op & ParallelXAct & ParallelYAct { build form3op; build ParallelXAct; build ParallelYAct; }
+:^form2op is fixed_4=7 & form2op & modix=0 & modiy=0 { build form2op; }
+:"LSPA+"^form2op ";" ParallelXAct ";" ParallelYAct is fixed_4=7 & form2op & ParallelXAct & ParallelYAct { build form2op; build ParallelXAct; build ParallelYAct; }
 :^form2op is fixed_4=6 & form2op & cond=0 { build form2op; }
 :^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
 :^immop is fixed_4=5 & immop { build immop; }
