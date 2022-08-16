@@ -737,10 +737,11 @@ control:"HALT" is fixed_rest=1 {
 # LPOP (Hardware loop): Loop pop
 control:"LPOP" is fixed_rest=2 unimpl
 
+define pcodeop forget_interrupt;
 # fint
 # FINT
 # FINT (Control): Forget interrupt
-control:"FINT" is fixed_rest=4 unimpl
+control:"FINT" is fixed_rest=4 { forget_interrupt(); }
 
 # stop
 # STOP
