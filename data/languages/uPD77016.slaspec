@@ -180,9 +180,6 @@ attach variables [ dest1 source2 ] [
 	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
 ];
 
-Direct: direct is xy=0 & direct { export *[data_x]:2 direct; }
-Direct: direct is xy=1 & direct { export *[data_y]:2 direct; }
-
 # TODO: Check this because Ghidra might be weird with 32-bit word sizes
 BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
 LoopEnd: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
@@ -476,26 +473,41 @@ immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=15 & op1 & op2 & imm {
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-4. Load/Store Instruction Format
+#
+# From https://www.eevblog.com/forum/microcontrollers/nec-dsp-upd77016-disassembler-help-anyone!/
+# it seems that the bits in suf correspond bits for l/h/e, while d is the direction, so the strange
+# "suf + d" table is mostly not helpful.
+#
+# Note that we can't create a single Suf table, as table exports need to be the same size, and
+# we can't have extra logic saying to sign-extend to the upper bits/ignore the upper bits of e/shift
+# so that the l bits are zero.
 #---------------------------------------------------------------------------------------------------
 
 # Partial load/store -> Section load/store?
 loadstore:"LSSE" is opcode_2=3 unimpl
 
-Suf:regl is suf=0 & regl { export regl; }
-Suf:regh is suf=1 & regh { export regh; }
-#Suf:rege is suf=2 & rege { export rege; }
-#Suf:regeh is suf=3 & regeh { export regeh; }
-#Suf:reg is suf=4 & reg { export reg; }
-Suf:"?"^suf reg is suf & reg unimpl
-
 # Direct addressing load/store
 # dest = *addr OR *addr = source
 # LSDA (Load/Store): Direct addressing load/store
-loadstore:"LSDA" Direct "=" Suf is opcode_2=2 & Direct & Suf & d=0 {
-	Direct = Suf;
+Direct: "*"^direct is xy=0 & direct { export *[data_x]:2 direct; }
+Direct: "*"^direct is xy=1 & direct { export *[data_y]:2 direct; }
+
+with : opcode_2=2 {
+with : suf=0b001 {
+loadstore:"LSDA" Direct "=" regl is regl & d=0 & Direct { Direct = regl; }
+loadstore:"LSDA" regl "=" Direct is regl & d=1 & Direct { regl = Direct; }
 }
-loadstore:"LSDA" Suf "=" Direct is opcode_2=2 & Direct & Suf & d=1 {
-	Suf = Direct;
+with : suf=0b010 {
+loadstore:"LSDA" Direct "=" regh is regh & d=0 & Direct { Direct = regh; }
+loadstore:"LSDA" regh "=" Direct is regh & d=1 & Direct { regh = Direct; }
+}
+with : suf=0b100 {
+loadstore:"LSDA" Direct "=" rege is rege & d=0 & Direct { Direct = zext(rege); }
+loadstore:"LSDA" rege "=" Direct is rege & d=1 & Direct { rege = Direct:1; }
+}
+# These are only valid for loads
+loadstore:"LSDA" regeh "=" Direct is suf=0b110 & regeh & d=1 & Direct { regeh = sext(Direct); }
+loadstore:"LSDA" reg "=" Direct is suf=0b111 & reg & d=1 & Direct { reg = sext(Direct) << 16; }
 }
 
 # Immediate value modify load/store
