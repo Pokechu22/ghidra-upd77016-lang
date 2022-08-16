@@ -311,6 +311,10 @@ form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 {
 #---------------------------------------------------------------------------------------------------
 # Figure A-2. Two-Operand Instruction Format
 # op1/op2 match the meanings in the manual now.
+# From https://www.eevblog.com/forum/microcontrollers/nec-dsp-upd77016-disassembler-help-anyone!/ it
+# seems that values 0, 10, and 11 are skipped (but there are 14 entries, so presumably, that thread
+# is treating NOP as skipped even though it's explicitly listed in the table, i.e. only 10 and 11
+# really should be skipped).
 #---------------------------------------------------------------------------------------------------
 
 # nop
@@ -378,37 +382,39 @@ form2op:"RND" op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 unimpl
 # EXP (Monomial operation): Exponent
 form2op:"EXP" op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
 
+# opcode=10 and opcode=11 assumed to be skipped
+
 # op2 = op1
 # ro' = ro
 # PUT (Monomial operation): Put
-form2op:"PUT" op2 "=" op1 is opcode=10 & op1 & op2 {
+form2op:"PUT" op2 "=" op1 is opcode=12 & op1 & op2 {
 	op2 = op1;
 }
 
 # op2 / = op1
 # ro' / = ro
 # DIV (Monomial operation): Divide (1 bit)
-form2op:"DIV" op2 "/ =" op1 is opcode=11 & op1 & op2 unimpl
+form2op:"DIV" op2 "/ =" op1 is opcode=13 & op1 & op2 unimpl
 
 # op2 + = op1
 # ro' + = ro
 # ACA (Monomial operation): Accumulate add
-form2op:"ACA" op2 "+ =" op1 is opcode=12 & op1 & op2 {
+form2op:"ACA" op2 "+ =" op1 is opcode=14 & op1 & op2 {
 	op2 = op2 + op1;
 }
 
 # op2 – = op1
 # ro' – = ro
 # ACS (Monomial operation): Accumulate subtract
-form2op:"ACS" op2 "- =" op1 is opcode=13 & op1 & op2 {
+form2op:"ACS" op2 "- =" op1 is opcode=15 & op1 & op2 {
 	op2 = op2 - op1;
 }
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-3. Immediate Value Operation Instruction Format
-# Opcode has been changed to start at 8 instead of 0, since that seems to be what's used in
-# practice. Is it possible that the order in the manual counts down from 15 instead of up from 0?
-# Or, they could be this way to match with form3op (since there are no immediate multiply ops)
+# Opcode has been changed to start at 8 instead of 0, as that results in it matching A-1.
+# Presumably there are no immediate multiply instructions.
+# See https://www.eevblog.com/forum/microcontrollers/nec-dsp-upd77016-disassembler-help-anyone!/
 #---------------------------------------------------------------------------------------------------
 
 # op2 = op1 + imm
@@ -624,6 +630,8 @@ control:"STOP" is fixed_rest=9 {
 #---------------------------------------------------------------------------------------------------
 # Figure A-10. Conditional Instruction Format
 # These are various forms of the COND instruction ("IF (ro cond)").
+# There are only 10 entries listed, but one of them is blank, so presumably these are in order.
+# The lowest bit seems to indicate negation, so the blank row is is probably NEVER.
 #---------------------------------------------------------------------------------------------------
 
 # ever
@@ -631,7 +639,7 @@ control:"STOP" is fixed_rest=9 {
 # Not implemented, as we instead skip the condition step
 # condition:"" is cond=0 { c:1 = 1; export c; }
 
-# blank row skipped (presumably corresponds to cond=1)
+# blank row skipped (presumably corresponds to cond=1, which is probably NEVER)
 
 # ==0
 # ==0: = 0
