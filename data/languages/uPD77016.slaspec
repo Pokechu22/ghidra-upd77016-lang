@@ -583,7 +583,7 @@ loop:"LOOP" imm_rep, LoopEnd is opcode_2=1 & LoopEnd & imm_rep_sign=0 & imm_rep 
 # loop rl { }
 # LOOP count { 2 to 255 instruction words };
 # LOOP (Hardware loop): Loop
-loop:"LOOP" rl, LoopEnd is opcode_2=1 & LoopEnd & rl unimpl
+loop:"LOOP" rl, LoopEnd is opcode_2=0 & LoopEnd & rl unimpl
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-9. CPU Control Instruction Format
