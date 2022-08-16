@@ -513,7 +513,30 @@ loadstore:"LSDA" reg "=" Direct is suf=0b111 & reg & d=1 & Direct { reg = sext(D
 # Immediate value modify load/store
 # dest = *dp_imm OR *dp_imm = source
 # LSIM (Load/Store): Immediate value index load/store
-loadstore:"LSIM" imm is opcode_2=1 & imm unimpl
+
+# The manual doesn't specify whether the X bus or the Y bus is used. I assume that DP0 through DP3
+# are for the X bus and DP4 through DP7 are the Y bus, since that seems to be the convention (and
+# the corresponding bit is also the xy bit in other contexts).
+DP:"*"^dp is dp & xy=0 { export *[data_x]:2 dp; }
+DP:"*"^dp is dp & xy=1 { export *[data_y]:2 dp; }
+
+with : opcode_2=1 {
+with : suf=0b001 {
+loadstore:"LSIM" DP^"##" imm "=" regl is regl & DP & d=0 & imm { DP = regl; }
+loadstore:"LSIM" regl "=" DP^"##" imm is regl & DP & d=1 & imm { regl = DP; }
+}
+with : suf=0b010 {
+loadstore:"LSIM" DP^"##" imm "=" regh is regh & DP & d=0 & imm { DP = regh; }
+loadstore:"LSIM" regh "=" DP^"##" imm is regh & DP & d=1 & imm { regh = DP; }
+}
+with : suf=0b100 {
+loadstore:"LSIM" DP^"##" imm "=" rege is rege & DP & d=0 & imm { DP = zext(rege); }
+loadstore:"LSIM" rege "=" DP^"##" imm is rege & DP & d=1 & imm { rege = DP:1; }
+}
+# These are only valid for loads
+loadstore:"LSIM" regeh "=" DP^"##" imm is suf=0b110 & regeh & DP & d=1 & imm { regeh = sext(DP); }
+loadstore:"LSIM" reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg = sext(DP); }
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-5. Inter-Register Transfer Instruction Format
