@@ -480,6 +480,7 @@ Suf:regh is suf=1 & regh { export regh; }
 #Suf:rege is suf=2 & rege { export rege; }
 #Suf:regeh is suf=3 & regeh { export regeh; }
 #Suf:reg is suf=4 & reg { export reg; }
+Suf:"?"^suf reg is suf & reg unimpl
 
 # Direct addressing load/store
 # dest = *addr OR *addr = source
