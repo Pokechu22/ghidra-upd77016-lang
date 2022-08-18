@@ -224,99 +224,115 @@ attach variables [ dmy ] [ DMY DMY ];
 # op3 = lt (op1,op2)
 # ro" = LT (ro, ro')
 # LT (Binomial operation): Less than
-form3op:"LT" op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 {
+form3opc:"LT" is opcode=0 {}
+form3opp:op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 {
 	op2 = zext(op0 < op1);
 }
 
 # op3 = op1h*op2h
 # ro = rh * rh'
 # MPY (Binomial operation): Multiply
-form3op:"MPY" op2 "=" op0h "*" op1h is op0h & opcode=1 & op1h & op2 unimpl
+form3opc:"MPY" is opcode=1 {}
+form3opp:op2 "=" op0h "*" op1h is op0h & opcode=1 & op1h & op2 unimpl
 
 # op3 = op3 + op1h*op2h
 # ro = ro + rh * rh'
 # MADD (Trinomial operation): Multiply add
 # Note: Ghidra doesn't allow you to use op2 twice in the operands, op2_dupe works around that
-form3op:"MADD" op2 "=" op2_dupe "+" op0h "*" op1h is op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
+form3opc:"MADD" is opcode=2 {}
+form3opp:op2 "=" op2_dupe "+" op0h "*" op1h is op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 – op1h*op2h
 # ro = ro – rh * rh'
 # MSUB (Trinomial operation): Multiply sub
-form3op:"MSUB" op2 "=" op2_dupe "-" op0h "*" op1h is op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
+form3opc:"MSUB" is opcode=3 {}
+form3opp:op2 "=" op2_dupe "-" op0h "*" op1h is op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 + op1h*op2l
 # ro = ro + rh * rl
 # SUMA (Trinomial operation): Sign unsign multiply add
-form3op:"SUMA" op2 "=" op2_dupe "+" op0h "*" op1l is op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
+form3opc:"SUMA" is opcode=4 {}
+form3opp:op2 "=" op2_dupe "+" op0h "*" op1l is op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
 
 # op3 = op3 + op1l*op2l
 # ro = ro + rl * rl'
 # UUMA (Trinomial operation): Unsign unsign multiply add
-form3op:"UUMA" op2 "=" op2_dupe "+" op0l "*" op1l is op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
+form3opc:"UUMA" is opcode=5 {}
+form3opp:op2 "=" op2_dupe "+" op0l "*" op1l is op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
 
 # op3 = op3 >> 1 + op1h*op2h
 # ro = (ro >> 1) + rh * rh'
 # MAS1 (Trinomial operation): 1-bit shift multiply add
-form3op:"MAS1" op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
+form3opc:"MAS1" is opcode=6 {}
+form3opp:op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op3 >> 16 + op1h*op2h
 # ro = (ro >> 16) + rh * rh'
 # MAS16 (Trinomial operation): 16-bit shift multiply add
-form3op:"MAS16" op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
+form3opc:"MAS16" is opcode=7 {}
+form3opp:op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
 
 # op3 = op1 + op2
 # ro'' = ro + ro'
 # ADD (Binomial operation): Add
-form3op:"ADD" op2 "=" op0 "+" op1 is op0 & opcode=8 & op1 & op2 {
+form3opc:"ADD" is opcode=8 {}
+form3opp:op2 "=" op0 "+" op1 is op0 & opcode=8 & op1 & op2 {
 	op2 = op0 + op1;
 }
 
 # op3 = op1 – op2
 # ro'' = ro – ro'
 # SUB (Binomial operation): Sub
-form3op:"SUB" op2 "=" op0 "-" op1 is op0 & opcode=9 & op1 & op2 {
+form3opc:"SUB" is opcode=9 {}
+form3opp:op2 "=" op0 "-" op1 is op0 & opcode=9 & op1 & op2 {
 	op2 = op0 - op1;
 }
 
 # op3 = op1 & op2
 # ro" = ro & ro'
 # AND (Binomial operation): AND
-form3op:"AND" op2 "=" op0 "&" op1 is op0 & opcode=10 & op1 & op2 {
+form3opc:"AND" is opcode=10 {}
+form3opp:op2 "=" op0 "&" op1 is op0 & opcode=10 & op1 & op2 {
 	op2 = op0 & op1;
 }
 
 # op3 = op1 | op2
 # ro" = ro | ro'
 # OR (Binomial operation): OR
-form3op:"OR" op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 {
+form3opc:"OR" is opcode=11 {}
+form3opp:op2 "=" op0 "|" op1 is op0 & opcode=11 & op1 & op2 {
 	op2 = op0 | op1;
 }
 
 # op3 = op1 ^ op2
 # ro" = ro /\ ro'
 # XOR (Binomial operation): Exclusive OR
-form3op:"XOR" op2 "=" op0 "^" op1 is op0 & opcode=12 & op1 & op2 {
+form3opc:"XOR" is opcode=12 {}
+form3opp:op2 "=" op0 "^" op1 is op0 & opcode=12 & op1 & op2 {
 	op2 = op0 ^ op1;
 }
 
 # op3 = op1 sra op2l
 # ro' = ro SRA rl
 # SRA (Binomial operation): Arithmetic right shift
-form3op:"SRA" op2 "=" op0 "SRA" op1l is op0 & opcode=13 & op1l & op2 {
+form3opc:"SRA" is opcode=13 {}
+form3opp:op2 "=" op0 "SRA" op1l is op0 & opcode=13 & op1l & op2 {
 	op2 = op0 s>> (op1l & 0x3f);
 }
 
 # op3 = op1 srl op2l
 # ro' = ro SRL rl
 # SRL (Binomial operation): Logical right shift
-form3op:"SRL" op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 {
+form3opc:"SRL" is opcode=14 {}
+form3opp:op2 "=" op0 "SRL" op1l is op0 & opcode=14 & op1l & op2 {
 	op2 = op0 >> (op1l & 0x3f);
 }
 
 # op3 = op1 sll op2l
 # ro' = ro SLL rl
 # SLL (Binomial operation): Logical left shift
-form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 {
+form3opc:"SLL" is opcode=15 {}
+form3opp:op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 {
 	op2 = op0 << (op1l & 0x3f);
 }
 
@@ -335,90 +351,104 @@ form3op:"SLL" op2 "=" op0 "SLL" op1l is op0 & opcode=15 & op1l & op2 {
 # This one is weird, since the documentation warns (page 125) that:
 # “NOP” is a direction to the ALU and does not mean that the entire instruction word is “NOP”.
 # However, the NOP instruction itself doesn't mention that.
-form2op:"NOP" is opcode=0 {}
+form2opc:"NOP" is opcode=0 {}
+form2opp: is opcode=0 {}
 
 # clr (op2)
 # CLR (ro)
 # CLR (Monomial operation): Clear
-form2op:"CLR" op2 is opcode=1 & op2 {
+form2opc:"CLR" is opcode=1 {}
+form2opp:op2 is opcode=1 & op2 {
 	op2 = 0;
 }
 
 # op2 = op1 + 1
 # ro' = ro + 1
 # INC (Monomial operation): Increment
-form2op:"INC" op2 "=" op1 "+" "1" is opcode=2 & op1 & op2 {
+form2opc:"INC" is opcode=2 {}
+form2opp:op2 "=" op1 "+" "1" is opcode=2 & op1 & op2 {
 	op2 = op1 + 1;
 }
 
 # op2 = op1 – 1
 # ro' = ro – 1
 # DEC (Monomial operation): Decrement
-form2op:"DEC" op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 {
+form2opc:"DEC" is opcode=3 {}
+form2opp:op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 {
 	op2 = op1 - 1;
 }
 
 # op2 = abs (op1)
 # ro' = ABS (ro)
 # ABS (Monomial operation): Absolute value
-form2op:"ABS" op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 {
+form2opc:"ABS" is opcode=4 {}
+form2opp:op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 {
 	op2 = abs(op1);
 }
 
 # op2 = ~op1
 # ro' = ~ ro
 # NOT (Monomial operation): One’s complement
-form2op:"NOT" op2 "=" "~"^op1 is opcode=5 & op1 & op2 {
+form2opc:"NOT" is opcode=5 {}
+form2opp:op2 "=" "~"^op1 is opcode=5 & op1 & op2 {
 	op2 = ~op1;
 }
 
 # op2 = –op1
 # ro' = –ro
 # NEG (Monomial operation): Two’s complement
-form2op:"NEG" op2 "=" "-"^op1 is opcode=6 & op1 & op2 {
+form2opc:"NEG" is opcode=6 {}
+form2opp:op2 "=" "-"^op1 is opcode=6 & op1 & op2 {
 	op2 = -op1;
 }
 
 # op2 = clip (op1)
 # ro' = CLIP (ro)
 # CLIP (Monomial operation): Clip
-form2op:"CLIP" op2 "=" "CLIP("^op1^")" is opcode=7 & op1 & op2 unimpl
+form2opc:"CLIP" is opcode=7 {}
+form2opp:op2 "=" "CLIP("^op1^")" is opcode=7 & op1 & op2 unimpl
 
 # op2 = round (op1)
 # ro' = ROUND (ro)
 # RND (Monomial operation): Round
-form2op:"RND" op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 unimpl
+form2opc:"RND" is opcode=8 {}
+form2opp:op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 unimpl
 
 # op2 = exp (op1)
 # ro' = EXP (ro)
 # EXP (Monomial operation): Exponent
-form2op:"EXP" op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
+form2opc:"EXP" is opcode=9 {}
+form2opp:op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
 
 # opcode=10 and opcode=11 assumed to be skipped
 
 # op2 = op1
 # ro' = ro
 # PUT (Monomial operation): Put
-form2op:"PUT" op2 "=" op1 is opcode=12 & op1 & op2 {
+form2opc:"PUT" is opcode=12 {}
+form2opp:op2 "=" op1 is opcode=12 & op1 & op2 {
 	op2 = op1;
 }
 
 # op2 / = op1
 # ro' / = ro
 # DIV (Monomial operation): Divide (1 bit)
-form2op:"DIV" op2 "/ =" op1 is opcode=13 & op1 & op2 unimpl
+form2opc:"DIV" is opcode=13 {}
+form2opp:op2 "/ =" op1 is opcode=13 & op1 & op2 unimpl
 
 # op2 + = op1
 # ro' + = ro
 # ACA (Monomial operation): Accumulate add
-form2op:"ACA" op2 "+ =" op1 is opcode=14 & op1 & op2 {
+form2opc:"ACA" is opcode=14 {}
+form2opp:op2 "+ =" op1 is opcode=14 & op1 & op2 {
 	op2 = op2 + op1;
 }
 
 # op2 – = op1
 # ro' – = ro
 # ACS (Monomial operation): Accumulate subtract
-form2op:"ACS" op2 "- =" op1 is opcode=15 & op1 & op2 {
+form2opc:"ACS" is opcode=15 {}
+form2opp:op2 "- =" op1 is opcode=15 & op1 & op2 {
 	op2 = op2 - op1;
 }
 
@@ -432,7 +462,8 @@ form2op:"ACS" op2 "- =" op1 is opcode=15 & op1 & op2 {
 # op2 = op1 + imm
 # ro' = ro + imm
 # IADD (Binomial operation): Immediate add
-immop:"IADD" op2 "=" op1 "+" imm is opcode=8 & op1 & op2 & imm {
+immopc:"IADD" is opcode=8 {}
+immopp:op2 "=" op1 "+" imm is opcode=8 & op1 & op2 & imm {
 	op2 = op1 + imm;
 }
 
@@ -440,49 +471,56 @@ immop:"IADD" op2 "=" op1 "+" imm is opcode=8 & op1 & op2 & imm {
 # ro' = ro – imm
 # ISUB (Binomial operation): Immediate sub
 # (op3 is a typo in the original manual)
-immop:"ISUB" op2 "=" op1 "-" imm is opcode=9 & op1 & op2 & imm {
+immopc:"ISUB" is opcode=9 {}
+immopp:op2 "=" op1 "-" imm is opcode=9 & op1 & op2 & imm {
 	op2 = op1 - imm;
 }
 
 # op2 = op1 & imm
 # ro' = ro & imm
 # IAND (Binomial operation): Immediate AND
-immop:"IAND" op2 "=" op1 "&" imm is opcode=10 & op1 & op2 & imm {
+immopc:"IAND" is opcode=10 {}
+immopp:op2 "=" op1 "&" imm is opcode=10 & op1 & op2 & imm {
 	op2 = op1 & imm;
 }
 
 # op2 = op1 | imm
 # ro' = ro | imm
 # IOR (Binomial operation): Immediate OR
-immop:"IOR" op2 "=" op1 "|" imm is opcode=11 & op1 & op2 & imm {
+immopc:"IOR" is opcode=11 {}
+immopp:op2 "=" op1 "|" imm is opcode=11 & op1 & op2 & imm {
 	op2 = op1 | imm;
 }
 
 # op2 = op1 ^ imm
 # ro' = ro /\ imm
 # IXOR (Binomial operation): Immediate exclusive OR
-immop:"IXOR" op2 "=" op1 "^" imm is opcode=12 & op1 & op2 & imm {
+immopc:"IXOR" is opcode=12 {}
+immopp:op2 "=" op1 "^" imm is opcode=12 & op1 & op2 & imm {
 	op2 = op1 ^ imm;
 }
 
 # op2 = op1 sra imm
 # ro' = ro SRA imm
 # ISRA (Binomial operation): Immediate arithmetic right shift
-immop:"ISRA" op2 "=" op1 "SRA" imm is opcode=13 & op1 & op2 & imm {
+immopc:"ISRA" is opcode=13 {}
+immopp:op2 "=" op1 "SRA" imm is opcode=13 & op1 & op2 & imm {
 	op2 = op1 s>> imm;
 }
 
 # op2 = op1 srl imm
 # ro' = ro SRL imm
 # ISRL (Binomial operation): Immediate logical right shift
-immop:"ISRL" op2 "=" op1 "SRL" imm is opcode=14 & op1 & op2 & imm {
+immopc:"ISRL" is opcode=14 {}
+immopp:op2 "=" op1 "SRL" imm is opcode=14 & op1 & op2 & imm {
 	op2 = op1 >> imm;
 }
 
 # op2 = op1 sll imm
 # ro' = ro SLL imm
 # ISLL (Binomial operation): Immediate logical left shift
-immop:"ISLL" op2 "=" op1 "SLL" imm is opcode=15 & op1 & op2 & imm {
+immopc:"ISLL" is opcode=15 {}
+immopp:op2 "=" op1 "SLL" imm is opcode=15 & op1 & op2 & imm {
 	op2 = op1 << imm;
 }
 
@@ -539,6 +577,7 @@ ParallelYAct:regy "=" Modiy is dy=1 & Modiy & regy & Dpy { regy = sext(Dpy) << 1
 
 # Partial load/store
 # LSSE (Load/Store): Section load/store
+# This is implemented at the end of the file.
 
 PartialXAct:"NOPX" is modix=0 {}
 with : sufx=0b001 {
@@ -572,30 +611,29 @@ PartialYAct:regye "=" Modiy is regye & dy=1 & Modiy & Dpy { regye = Dpy:1; build
 PartialYAct:regyeh "=" Modiy is sufy=0b110 & regyeh & dy=1 & Modiy & Dpy { regyeh = sext(Dpy); build Modiy; }
 PartialYAct:regy "=" Modiy is sufy=0b111 & regy & dy=1 & Modiy & Dpy { regy = sext(Dpy) << 16; build Modiy; }
 
-loadstore:"LSSE" PartialXAct^";" PartialYAct is opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
-
 # Direct addressing load/store
 # dest = *addr OR *addr = source
 # LSDA (Load/Store): Direct addressing load/store
 Direct: "*"^direct is xy=0 & direct { export *[data_x]:2 direct; }
 Direct: "*"^direct is xy=1 & direct { export *[data_y]:2 direct; }
 
+loadstoreopc:"LSDA" is opcode_2=2 {}
 with : opcode_2=2 {
 with : suf=0b001 {
-loadstore:"LSDA" Direct "=" regl is regl & d=0 & Direct { Direct = regl; }
-loadstore:"LSDA" regl "=" Direct is regl & d=1 & Direct { regl = Direct; }
+loadstoreopp:Direct "=" regl is regl & d=0 & Direct { Direct = regl; }
+loadstoreopp:regl "=" Direct is regl & d=1 & Direct { regl = Direct; }
 }
 with : suf=0b010 {
-loadstore:"LSDA" Direct "=" regh is regh & d=0 & Direct { Direct = regh; }
-loadstore:"LSDA" regh "=" Direct is regh & d=1 & Direct { regh = Direct; }
+loadstoreopp:Direct "=" regh is regh & d=0 & Direct { Direct = regh; }
+loadstoreopp:regh "=" Direct is regh & d=1 & Direct { regh = Direct; }
 }
 with : suf=0b100 {
-loadstore:"LSDA" Direct "=" rege is rege & d=0 & Direct { Direct = zext(rege); }
-loadstore:"LSDA" rege "=" Direct is rege & d=1 & Direct { rege = Direct:1; }
+loadstoreopp:Direct "=" rege is rege & d=0 & Direct { Direct = zext(rege); }
+loadstoreopp:rege "=" Direct is rege & d=1 & Direct { rege = Direct:1; }
 }
 # These are only valid for loads
-loadstore:"LSDA" regeh "=" Direct is suf=0b110 & regeh & d=1 & Direct { regeh = sext(Direct); }
-loadstore:"LSDA" reg "=" Direct is suf=0b111 & reg & d=1 & Direct { reg = sext(Direct) << 16; }
+loadstoreopp:regeh "=" Direct is suf=0b110 & regeh & d=1 & Direct { regeh = sext(Direct); }
+loadstoreopp:reg "=" Direct is suf=0b111 & reg & d=1 & Direct { reg = sext(Direct) << 16; }
 }
 
 # Immediate value modify load/store
@@ -608,22 +646,23 @@ loadstore:"LSDA" reg "=" Direct is suf=0b111 & reg & d=1 & Direct { reg = sext(D
 DP:"*"^dp is dp & xy=0 { export *[data_x]:2 dp; }
 DP:"*"^dp is dp & xy=1 { export *[data_y]:2 dp; }
 
+loadstoreopc:"LSIM" is opcode_2=1 {}
 with : opcode_2=1 {
 with : suf=0b001 {
-loadstore:"LSIM" DP^"##" imm "=" regl is regl & DP & d=0 & imm { DP = regl; }
-loadstore:"LSIM" regl "=" DP^"##" imm is regl & DP & d=1 & imm { regl = DP; }
+loadstoreopp:DP^"##" imm "=" regl is regl & DP & d=0 & imm { DP = regl; }
+loadstoreopp:regl "=" DP^"##" imm is regl & DP & d=1 & imm { regl = DP; }
 }
 with : suf=0b010 {
-loadstore:"LSIM" DP^"##" imm "=" regh is regh & DP & d=0 & imm { DP = regh; }
-loadstore:"LSIM" regh "=" DP^"##" imm is regh & DP & d=1 & imm { regh = DP; }
+loadstoreopp:DP^"##" imm "=" regh is regh & DP & d=0 & imm { DP = regh; }
+loadstoreopp:regh "=" DP^"##" imm is regh & DP & d=1 & imm { regh = DP; }
 }
 with : suf=0b100 {
-loadstore:"LSIM" DP^"##" imm "=" rege is rege & DP & d=0 & imm { DP = zext(rege); }
-loadstore:"LSIM" rege "=" DP^"##" imm is rege & DP & d=1 & imm { rege = DP:1; }
+loadstoreopp:DP^"##" imm "=" rege is rege & DP & d=0 & imm { DP = zext(rege); }
+loadstoreopp:rege "=" DP^"##" imm is rege & DP & d=1 & imm { rege = DP:1; }
 }
 # These are only valid for loads
-loadstore:"LSIM" regeh "=" DP^"##" imm is suf=0b110 & regeh & DP & d=1 & imm { regeh = sext(DP); }
-loadstore:"LSIM" reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg = sext(DP); }
+loadstoreopp:regeh "=" DP^"##" imm is suf=0b110 & regeh & DP & d=1 & imm { regeh = sext(DP); }
+loadstoreopp:reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg = sext(DP); }
 }
 
 #---------------------------------------------------------------------------------------------------
@@ -634,10 +673,10 @@ loadstore:"LSIM" reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg =
 
 # dest = rl OR rl = source
 # MOV (Inter-register transfer): Inter-register transfer
-inter:"MOV" dest1 "=" source1 is source1 & dest1 & flag_16=0 {
+interopp:dest1 "=" source1 is source1 & dest1 & flag_16=0 {
 	dest1 = source1;
 }
-inter:"MOV" dest2 "=" source2 is source2 & dest2 & flag_16=1 {
+interopp:dest2 "=" source2 is source2 & dest2 & flag_16=1 {
 	dest2 = source2;
 }
 
@@ -648,46 +687,54 @@ inter:"MOV" dest2 "=" source2 is source2 & dest2 & flag_16=1 {
 
 # dest = imm
 # LDI (Immediate value set): Immediate value set
-immset:"LDI" dest1 "=" imm is dest1 & imm & flag_16=0 {
+immsetopp:dest1 "=" imm is dest1 & imm & flag_16=0 {
 	dest1 = imm;
 }
-immset:"LDI" dest2 "=" imm is dest2 & imm & flag_16=1 {
+immsetopp:dest2 "=" imm is dest2 & imm & flag_16=1 {
 	dest2 = imm;
 }
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-7. Branch Instruction Format
+# The opcode is deliberately included in both opc and opp, as the mnemonic in the manual uses the
+# opcode (and it gives better output with conditionals).
 #---------------------------------------------------------------------------------------------------
 
 # br
 # JMP imm
 # JMP (Branch): Jump
-branch:"JMP" BranchAddr is opcode_2=3 & flag_25=0 & BranchAddr { goto BranchAddr; }
+branchopc:"JMP" is opcode_2=3 & flag_25=0 {}
+branchopp:"JMP" BranchAddr is opcode_2=3 & flag_25=0 & BranchAddr { goto BranchAddr; }
 
 # call
 # CALL imm
 # CALL (Branch): Subroutine call
-branch:"CALL" BranchAddr is opcode_2=3 & flag_25=1 & BranchAddr { STK = inst_next; call BranchAddr; }
+branchopc:"CALL" is opcode_2=3 & flag_25=1 {}
+branchopp:"CALL" BranchAddr is opcode_2=3 & flag_25=1 & BranchAddr { STK = inst_next; call BranchAddr; }
 
 # jp
 # JMP dp
 # JREG (Branch): Register indirect jump
-branch:"JREG" dp is opcode_2=2 & flag_25=0 & dp { goto [dp]; }
+branchopc:"JREG" is opcode_2=2 & flag_25=0 {}
+branchopp:"JMP" dp is opcode_2=2 & flag_25=0 & dp { goto [dp]; }
 
 # callr
 # CALL dp
 # CREG (Branch): Register indirect subroutine call
-branch:"CREG" dp is opcode_2=2 & flag_25=1 & dp { call [dp]; }
+branchopc:"CREG" is opcode_2=2 & flag_25=1 {}
+branchopp:"CALL" dp is opcode_2=2 & flag_25=1 & dp { call [dp]; }
 
 # ret
 # RET
 # RET (Branch): Return
-branch:"RET" is opcode_2=1 & flag_25=0 { return [STK]; }
+branchopc:"RET" is opcode_2=1 & flag_25=0 {}
+branchopp:"RET" is opcode_2=1 & flag_25=0 { return [STK]; }
 
 # reti
 # RETI
 # RETI (Branch): Interrupt return
-branch:"RETI" is opcode_2=1 & flag_25=1 { return [STK]; }
+branchopc:"RETI" is opcode_2=1 & flag_25=1 {}
+branchopp:"RETI" is opcode_2=1 & flag_25=1 { return [STK]; }
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-8. Hardware Loop Instruction Format
@@ -767,55 +814,75 @@ control:"STOP" is fixed_rest=9 {
 
 # ==0
 # ==0: = 0
-condition:"IF("^top^" == 0) " is cond=2 & top { c:1 = (top == 0); export c; }
+condition:"IF ("^top^" == 0)" is cond=2 & top { c:1 = (top == 0); export c; }
 
 # !=0
 # !=0: ≠ 0
-condition:"IF("^top^" != 0) " is cond=3 & top { c:1 = (top != 0); export c; }
+condition:"IF ("^top^" != 0)" is cond=3 & top { c:1 = (top != 0); export c; }
 
 # >0
 # >0: > 0
-condition:"IF("^top^" > 0) " is cond=4 & top { c:1 = (top s> 0); export c; }
+condition:"IF ("^top^" > 0)" is cond=4 & top { c:1 = (top s> 0); export c; }
 
 # <=0
 # <=0: ≤ 0
-condition:"IF(" top^" <= 0) " is cond=5 & top { c:1 = (top s<= 0); export c; }
+condition:"IF ("^top^" <= 0)" is cond=5 & top { c:1 = (top s<= 0); export c; }
 
 # >=0
 # >=0: ≥ 0
-condition:"IF("^top^" >= 0) " is cond=6 & top { c:1 = (top s>= 0); export c; }
+condition:"IF ("^top^" >= 0)" is cond=6 & top { c:1 = (top s>= 0); export c; }
 
 # <0
 # <0: < 0
-condition:"IF("^top^" < 0) " is cond=7 & top { c:1 = (top s< 0); export c; }
+condition:"IF ("^top^" < 0)" is cond=7 & top { c:1 = (top s< 0); export c; }
 
 # ==ex
 # ==EX: Extension (bits 39 to 31 are a mixture of 0 and 1)
 # TODO: Isn't this definition backwards? The sign bit (31) should match all of the following bits if
 # the value is equal to its extension.
-condition:"IF("^top^" == EXT("^top_hl^")) " is cond=8 & top & top_hl { c:1 = (top == sext(top_hl)); export c; }
+condition:"IF ("^top^" == EXT("^top_hl^"))" is cond=8 & top & top_hl { c:1 = (top == sext(top_hl)); export c; }
 
 # !=ex
 # !=EX: Without extension (bits 39 to 31 are all 0 or all 1)
-condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (top != sext(top_hl)); export c; }
+condition:"IF ("^top^" != EXT("^top_hl^"))" is cond=9 & top & top_hl { c:1 = (top != sext(top_hl)); export c; }
 
 #---------------------------------------------------------------------------------------------------
 # Merge the above together to form the root instruction table.
 #---------------------------------------------------------------------------------------------------
 
-:^form3op is fixed_1=1 & form3op & modix=0 & modiy=0 { build form3op; }
-:"LSPA+"^form3op ";" ParallelXAct ";" ParallelYAct is fixed_1=1 & form3op & ParallelXAct & ParallelYAct { build form3op; build ParallelXAct; build ParallelYAct; }
-:^form2op is fixed_4=7 & form2op & modix=0 & modiy=0 { build form2op; }
-:"LSPA+"^form2op ";" ParallelXAct ";" ParallelYAct is fixed_4=7 & form2op & ParallelXAct & ParallelYAct { build form2op; build ParallelXAct; build ParallelYAct; }
-:^form2op is fixed_4=6 & form2op & cond=0 { build form2op; }
-:^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
-:^immop is fixed_4=5 & immop { build immop; }
-:^loadstore is fixed_4=4 & loadstore { build loadstore; }
-:^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter { build inter; }
-:^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter & cond=0 { build inter; }
-:^condition inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter & condition { if (!condition) goto inst_next; build inter; }
-:^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
-:^branch is fixed_4=2 & branch & cond=0 { build branch; }
-:^condition branch is fixed_4=2 & branch & condition { if (!condition) goto inst_next; build branch; }
+# Figure A-1. Three-Operand Instruction Format
+:^form3opc form3opp is fixed_1=1 & form3opc & form3opp & modix=0 & modiy=0 { build form3opp; }
+:"LSPA+"^form3opc form3opp^";" ParallelXAct^";" ParallelYAct is fixed_1=1 & form3opc & form3opp & ParallelXAct & ParallelYAct { build form3opp; build ParallelXAct; build ParallelYAct; }
+
+# Figure A-2. Two-Operand Instruction Format
+# Parallel load/store
+:^form2opc form2opp is fixed_4=7 & form2opc & form2opp & modix=0 & modiy=0 { build form2opp; }
+:"LSPA+"^form2opc form2opp^";" ParallelXAct^";" ParallelYAct is fixed_4=7 & form2opc & form2opp & ParallelXAct & ParallelYAct { build form2opp; build ParallelXAct; build ParallelYAct; }
+# Conditional
+:^form2opc form2opp is fixed_4=6 & form2opc & form2opp & cond=0 { build form2opp; }
+:^"IF+"^form2opc condition form2opp is fixed_4=6 & form2opc & form2opp & condition { if (!condition) goto inst_next; build form2opp; }
+
+# Figure A-3. Immediate Value Operation Instruction Format
+:^immopc immopp is fixed_4=5 & immopc & immopp { build immopp; }
+
+# Figure A-4. Load/Store Instruction Format (excluding parallel load/store)
+:"LSSE" PartialXAct^";" PartialYAct is fixed_4=4 & opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
+:^loadstoreopc loadstoreopp is fixed_4=4 & loadstoreopc & loadstoreopp { build loadstoreopp; }
+
+# Figure A-5. Inter-Register Transfer Instruction Format
+:"MOV" interopp is fixed_4=3 & opcode_2=3 & flag_22=1 & interopp { build interopp; }
+:"MOV" interopp is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & cond=0 { build interopp; }
+:"IF+MOV" condition interopp is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & condition { if (!condition) goto inst_next; build interopp; }
+
+# Figure A-6. Immediate Value Set Instruction Format
+:"LDI" immsetopp is fixed_4=3 & opcode_2=2 & immsetopp { build immsetopp; }
+
+# Figure A-7. Branch Instruction Format
+:^branchopc branchopp is fixed_4=2 & branchopc & branchopp & cond=0 { build branchopp; }
+:"IF+"^branchopc condition branchopp is fixed_4=2 & branchopc & branchopp & condition { if (!condition) goto inst_next; build branchopp; }
+
+# Figure A-8. Hardware Loop Instruction Format
 :^loop is fixed_4=1 & loop { build loop; }
+
+# Figure A-9. CPU Control Instruction Format
 :^control is fixed_4=0 & control { build control; }
