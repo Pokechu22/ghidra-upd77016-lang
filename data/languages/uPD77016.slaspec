@@ -169,6 +169,35 @@ define token opbyte (32)
 	fixed_rest = (0, 27)
 ;
 
+# Fake register for extra-fake purposes; hardware uses some of the stacks for this
+define register offset=0x60 size=8 [ loopcontext ];
+
+# Magic to make loops work
+# Note that unlike GCDSP, we don't need to have loop skips, as entering a loop with the counter at
+# 0 is not allowed (on GCDSP, doing that skips the loop, so we need to have special logic both at
+# the loop end and the instruction immediately following the loop instruction).
+define context loopcontext
+	loopjumpbackaddr = (0,15) noflow
+	hasloopjumpback = (16,16) noflow
+	loopstackdepth = (17,19)
+;
+
+# Fake loop counters. Real hardware only has 4, but it also has a separate counter for the REP
+# instruction. We don't currently reflect this value in RC or LC.
+define register offset=0x50 size=2 [ LC0 LC1 LC2 LC3 LC4 LC5 LC6 LC7 ];
+
+# The outermost loop increments depth and thus uses a depth of 1, so value 0 isn't really used.
+# In GCDSP, we only used 2 bits for loopstackdepth; uPD77016 has 3 bits, though the registers are
+# normally only readable when the value is 1-4 (I think?)
+CurLC: is loopstackdepth=0 { export LC0; }
+CurLC: is loopstackdepth=1 { export LC1; }
+CurLC: is loopstackdepth=2 { export LC2; }
+CurLC: is loopstackdepth=3 { export LC3; }
+CurLC: is loopstackdepth=4 { export LC4; }
+CurLC: is loopstackdepth=5 { export LC5; }
+CurLC: is loopstackdepth=6 { export LC6; }
+CurLC: is loopstackdepth=7 { export LC7; }
+
 attach variables [ reg   regx   regy   op0  op1  op2  op2_dupe     top ] [ R0   R1   R2   R3   R4   R5   R6   R7   ];
 attach variables [ regl  regxl  regyl  op0l op1l op2l source1 dest2 rl ] [ R0L  R1L  R2L  R3L  R4L  R5L  R6L  R7L  ];
 attach variables [ regh  regxh  regyh  op0h op1h op2h                  ] [ R0H  R1H  R2H  R3H  R4H  R5H  R6H  R7H  ];
@@ -188,9 +217,10 @@ attach variables [ dest1 source2 ] [
 	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
 ];
 
-# TODO: Check this because Ghidra might be weird with 32-bit word sizes
 BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
-LoopEnd: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
+RepAfterIns: rel is epsilon [ rel = inst_next + 1; ] { export *[inst]:1 rel; }
+LoopLastIns: rel is loop_end [ rel = inst_start + loop_end; ] { export *[inst]:1 rel; }
+LoopAfterIns: rel is loop_end [ rel = inst_next + loop_end; ] { export *[inst]:1 rel; }
 
 attach variables [ dp ] [ DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7 ];
 attach variables [ dpx ] [ DP0 DP1 DP2 DP3 ];
@@ -738,39 +768,94 @@ branchopp:"RETI" is opcode_2=1 & flag_25=1 { return [STK]; }
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-8. Hardware Loop Instruction Format
+# Based on U15807EJ2V0UM00.pdf "Table 4-7. CPU Registers to Be Initialized and Their Initial Values"
+# the LC (loop counter) and RC (repeat counter) registers are initialized with their top bit set,
+# and the LOOP/REP instructions forbid using 0x8000 or more iterations, so that bit might be used
+# to check if a loop is active. "4.4.3 Flow control block" talks about the loop stack register and
+# how it automatically changes the loop stack pointer when LSTK1 is read/written.
+# For now, we don't use these registers directly, but instead use context registers, since those
+# seem more likely to produce good decompilation. We also only deal with the loop counter stack;
+# the start and end addresses are instead handled via context.
 #---------------------------------------------------------------------------------------------------
 
 # repeat count
 # REP count
 # REP (Hardware loop): Repeat
-loop:"REP" imm_rep is opcode_2=3 & imm_rep_sign=0 & imm_rep unimpl
+# Rep doesn't officially have a "{" on it, but since we re-use the loop logic it's easier to add it.
+# The closing "}" is automatically added by the context logic.
+loop:"REP" imm_rep "{" is opcode_2=3 & imm_rep_sign=0 & imm_rep & CurLC & RepAfterIns [
+	hasloopjumpback = 1;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(RepAfterIns, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopjumpback = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurLC = imm_rep;
+}
 
 # repeat rl
 # REP count
 # REP (Hardware loop): Repeat
 # Note: This isn't clearly distinguished, but it DOES exist, see e.g. page 17
-loop:"REP" rl is opcode_2=2 & rl unimpl
+loop:"REP" rl "{" is opcode_2=2 & rl & CurLC & RepAfterIns [
+	hasloopjumpback = 1;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(RepAfterIns, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopjumpback = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurLC = rl;
+}
 
 # loop imm { }
 # LOOP count { 2 to 255 instruction words };
 # LOOP (Hardware loop): Loop
-loop:"LOOP" imm_rep, LoopEnd is opcode_2=1 & LoopEnd & imm_rep_sign=0 & imm_rep unimpl
+loop:"LOOP" imm_rep, LoopAfterIns "{" is opcode_2=1 & LoopAfterIns & LoopLastIns & imm_rep_sign=0 & imm_rep & CurLC [
+	hasloopjumpback = 1;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(LoopAfterIns, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(LoopLastIns, hasloopjumpback);
+	globalset(LoopLastIns, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopjumpback = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurLC = imm_rep;
+}
 
 # loop rl { }
 # LOOP count { 2 to 255 instruction words };
 # LOOP (Hardware loop): Loop
-loop:"LOOP" rl, LoopEnd is opcode_2=0 & LoopEnd & rl unimpl
+loop:"LOOP" rl, LoopAfterIns "{" is opcode_2=0 & LoopAfterIns & LoopLastIns & rl & CurLC [
+	hasloopjumpback = 1;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(LoopAfterIns, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
+	globalset(LoopLastIns, hasloopjumpback);
+	globalset(LoopLastIns, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopjumpback = 0;
+	loopjumpbackaddr = 0;
+] {
+	CurLC = rl;
+}
 
 #---------------------------------------------------------------------------------------------------
 # Figure A-9. CPU Control Instruction Format
 #---------------------------------------------------------------------------------------------------
-
-# nop
-# NOP
-# NOP (Control): No operation
-# Note that we already had a NOP in A-2. Maybe this is the true NOP, and the other is for load/store
-# without any ALU action?
-control:"NOP" is fixed_rest=0 {}
 
 # halt
 # HALT
@@ -782,7 +867,10 @@ control:"HALT" is fixed_rest=1 {
 # lpop
 # LPOP
 # LPOP (Hardware loop): Loop pop
-control:"LPOP" is fixed_rest=2 unimpl
+control:"LPOP" is fixed_rest=2 [
+	loopstackdepth = loopstackdepth - 1;
+	globalset(inst_next, loopstackdepth);
+] {}
 
 define pcodeop forget_interrupt;
 # fint
@@ -850,39 +938,68 @@ condition:"IF ("^top^" != EXT("^top_hl^"))" is cond=9 & top & top_hl { c:1 = (to
 # Merge the above together to form the root instruction table.
 #---------------------------------------------------------------------------------------------------
 
+# Handle looping logic:
+LoopJumpBackAddrWrapper: "} =>"^loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
+
+loopjumpback:"" is hasloopjumpback=0 {}
+loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrapper & CurLC {
+	CurLC = CurLC - 1;
+	if (CurLC s> 0) goto LoopJumpBackAddrWrapper;
+}
+
 # Figure A-1. Three-Operand Instruction Format
-:^form3opc form3opp is fixed_1=1 & form3opc & form3opp & modix=0 & modiy=0 { build form3opp; }
-:"LSPA+"^form3opc form3opp^";" ParallelXAct^";" ParallelYAct is fixed_1=1 & form3opc & form3opp & ParallelXAct & ParallelYAct { build form3opp; build ParallelXAct; build ParallelYAct; }
+:^form3opc form3opp loopjumpback is fixed_1=1 & form3opc & form3opp & modix=0 & modiy=0 & loopjumpback { build form3opp; build loopjumpback; }
+:"LSPA+"^form3opc form3opp^";" ParallelXAct^";" ParallelYAct loopjumpback is fixed_1=1 & form3opc & form3opp & ParallelXAct & ParallelYAct & loopjumpback { build form3opp; build ParallelXAct; build ParallelYAct; build loopjumpback; }
 
 # Figure A-2. Two-Operand Instruction Format
 # Parallel load/store
-:^form2opc form2opp is fixed_4=7 & form2opc & form2opp & modix=0 & modiy=0 { build form2opp; }
-:"LSPA+"^form2opc form2opp^";" ParallelXAct^";" ParallelYAct is fixed_4=7 & form2opc & form2opp & ParallelXAct & ParallelYAct { build form2opp; build ParallelXAct; build ParallelYAct; }
+:^form2opc form2opp loopjumpback is fixed_4=7 & form2opc & form2opp & modix=0 & modiy=0 & loopjumpback { build form2opp; build loopjumpback; }
+:"LSPA+"^form2opc form2opp^";" ParallelXAct^";" ParallelYAct loopjumpback is fixed_4=7 & form2opc & form2opp & ParallelXAct & ParallelYAct & loopjumpback { build form2opp; build ParallelXAct; build ParallelYAct; build loopjumpback; }
 # Conditional
-:^form2opc form2opp is fixed_4=6 & form2opc & form2opp & cond=0 { build form2opp; }
-:^"IF+"^form2opc condition form2opp is fixed_4=6 & form2opc & form2opp & condition { if (!condition) goto inst_next; build form2opp; }
+:^form2opc form2opp loopjumpback is fixed_4=6 & form2opc & form2opp & cond=0 & loopjumpback { build form2opp; build loopjumpback; }
+:^"IF+"^form2opc condition loopjumpback form2opp is fixed_4=6 & form2opc & form2opp & condition & loopjumpback {
+	if (!condition) goto <done>;
+	build form2opp;
+	<done>
+	build loopjumpback;
+}
 
 # Figure A-3. Immediate Value Operation Instruction Format
-:^immopc immopp is fixed_4=5 & immopc & immopp { build immopp; }
+:^immopc immopp loopjumpback is fixed_4=5 & immopc & immopp & loopjumpback { build immopp; build loopjumpback; }
 
 # Figure A-4. Load/Store Instruction Format (excluding parallel load/store)
-:"LSSE" PartialXAct^";" PartialYAct is fixed_4=4 & opcode_2=3 & PartialXAct & PartialYAct { build PartialXAct; build PartialYAct; }
-:^loadstoreopc loadstoreopp is fixed_4=4 & loadstoreopc & loadstoreopp { build loadstoreopp; }
+:"LSSE" PartialXAct^";" PartialYAct loopjumpback is fixed_4=4 & opcode_2=3 & PartialXAct & PartialYAct & loopjumpback { build PartialXAct; build PartialYAct; build loopjumpback; }
+:^loadstoreopc loadstoreopp loopjumpback is fixed_4=4 & loadstoreopc & loadstoreopp & loopjumpback { build loadstoreopp; build loopjumpback; }
 
 # Figure A-5. Inter-Register Transfer Instruction Format
-:"MOV" interopp is fixed_4=3 & opcode_2=3 & flag_22=1 & interopp { build interopp; }
-:"MOV" interopp is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & cond=0 { build interopp; }
-:"IF+MOV" condition interopp is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & condition { if (!condition) goto inst_next; build interopp; }
+:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=1 & interopp & loopjumpback { build interopp; build loopjumpback; }
+:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & cond=0 & loopjumpback { build interopp; build loopjumpback; }
+:"IF+MOV" condition interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & condition & loopjumpback {
+	if (!condition) goto <done>;
+	build interopp;
+	<done>
+	build loopjumpback;
+}
 
 # Figure A-6. Immediate Value Set Instruction Format
-:"LDI" immsetopp is fixed_4=3 & opcode_2=2 & immsetopp { build immsetopp; }
+:"LDI" immsetopp loopjumpback is fixed_4=3 & opcode_2=2 & immsetopp & loopjumpback { build immsetopp; build loopjumpback; }
 
 # Figure A-7. Branch Instruction Format
+# It is illegal for branch instructions to be within 3 instructions of a loop jumpback.
 :^branchopc branchopp is fixed_4=2 & branchopc & branchopp & cond=0 { build branchopp; }
 :"IF+"^branchopc condition branchopp is fixed_4=2 & branchopc & branchopp & condition { if (!condition) goto inst_next; build branchopp; }
 
 # Figure A-8. Hardware Loop Instruction Format
+# It is illegal for loops to be within 3 instructions of a loop jumpback.
 :^loop is fixed_4=1 & loop { build loop; }
 
 # Figure A-9. CPU Control Instruction Format
+# These can't be combined with loop jumpbacks (apart from NOP, which we handle separately)
 :^control is fixed_4=0 & control { build control; }
+
+# nop
+# NOP
+# NOP (Control): No operation
+# Note that we already had a NOP in A-2. Maybe this is the true NOP, and the other is for load/store
+# without any ALU action?
+:"NOP" loopjumpback is fixed_4=0 & fixed_rest=0 & loopjumpback { build loopjumpback; }
