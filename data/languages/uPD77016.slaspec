@@ -811,9 +811,9 @@ condition:"IF("^top^" != EXT("^top_hl^")) " is cond=9 & top & top_hl { c:1 = (to
 :^condition form2op is fixed_4=6 & form2op & condition { if (!condition) goto inst_next; build form2op; }
 :^immop is fixed_4=5 & immop { build immop; }
 :^loadstore is fixed_4=4 & loadstore { build loadstore; }
-:^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter { build inter; }
-:^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & cond=0 { build inter; }
-:^condition inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter & condition { if (!condition) goto inst_next; build inter; }
+:^inter is fixed_4=3 & opcode_2=3 & flag_22=1 & inter { build inter; }
+:^inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter & cond=0 { build inter; }
+:^condition inter is fixed_4=3 & opcode_2=3 & flag_22=0 & inter & condition { if (!condition) goto inst_next; build inter; }
 :^immset is fixed_4=3 & opcode_2=2 & immset { build immset; }
 :^branch is fixed_4=2 & branch & cond=0 { build branch; }
 :^condition branch is fixed_4=2 & branch & condition { if (!condition) goto inst_next; build branch; }
