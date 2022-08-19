@@ -441,13 +441,37 @@ form2opp:op2 "=" "-"^op1 is opcode=6 & op1 & op2 {
 # ro' = CLIP (ro)
 # CLIP (Monomial operation): Clip
 form2opc:"CLIP" is opcode=7 {}
-form2opp:op2 "=" "CLIP("^op1^")" is opcode=7 & op1 & op2 unimpl
+form2opp:op2 "=" "CLIP("^op1^")" is opcode=7 & op1 & op2 {
+	if (op1 s> 0x7fffffff) goto <clip_positive>;
+	if (op1 s< -0x80000000) goto <clip_negative>;
+	op2 = op1;
+	goto <done>;
+	<clip_positive>
+	op2 = 0x7fffffff;
+	goto <done>;
+	<clip_negative>
+	op2 = -0x80000000;
+	<done>
+}
 
 # op2 = round (op1)
 # ro' = ROUND (ro)
 # RND (Monomial operation): Round
 form2opc:"RND" is opcode=8 {}
-form2opp:op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 unimpl
+form2opp:op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 {
+	if (op1 s> 0x7fff0000) goto <clip_positive>;
+	# Note: U13116EJ2V0UM00.pdf has a typo on page 141 (> instead of <)
+	# Page 67 is correct.
+	if (op1 s< -0x80000000) goto <clip_negative>;
+	op2 = (op1 + 0x8000) & 0xffffff0000;
+	goto <done>;
+	<clip_positive>
+	op2 = 0x7fff0000;
+	goto <done>;
+	<clip_negative>
+	op2 = -0x80000000;
+	<done>
+}
 
 # op2 = exp (op1)
 # ro' = EXP (ro)
