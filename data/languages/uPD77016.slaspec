@@ -1020,7 +1020,7 @@ loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrap
 :"LSPA+"^form2opc form2opp^";" ParallelXAct^";" ParallelYAct loopjumpback is fixed_4=7 & form2opc & form2opp & ParallelXAct & ParallelYAct & loopjumpback { build form2opp; build ParallelXAct; build ParallelYAct; build loopjumpback; }
 # Conditional
 :^form2opc form2opp loopjumpback is fixed_4=6 & form2opc & form2opp & cond=0 & loopjumpback { build form2opp; build loopjumpback; }
-:^"IF+"^form2opc condition loopjumpback form2opp is fixed_4=6 & form2opc & form2opp & condition & loopjumpback {
+:"IF+"^form2opc condition form2opp loopjumpback is fixed_4=6 & form2opc & form2opp & condition & loopjumpback {
 	if (!condition) goto <done>;
 	build form2opp;
 	<done>
