@@ -31,60 +31,60 @@ define register offset=0x38 size=2 [ ESR ];
 
 # Page 111, 4.6.2 General-purpose registers and data formats
 define register offset=0x80 size=5 [ R0 ];
-define register offset=0x80 size=1 [ R0E ];
-define register offset=0x81 size=2 [ R0H ];
-define register offset=0x83 size=2 [ R0L ];
-define register offset=0x81 size=4 [ R0HL ];
-define register offset=0x80 size=3 [ R0EH ];
+define register offset=0x80 size=2 [ R0L ];
+define register offset=0x82 size=2 [ R0H ];
+define register offset=0x84 size=1 [ R0E ];
+define register offset=0x80 size=4 [ R0HL ];
+define register offset=0x82 size=3 [ R0EH ];
 
 define register offset=0x90 size=5 [ R1 ];
-define register offset=0x90 size=1 [ R1E ];
-define register offset=0x91 size=2 [ R1H ];
-define register offset=0x93 size=2 [ R1L ];
-define register offset=0x91 size=4 [ R1HL ];
-define register offset=0x90 size=3 [ R1EH ];
+define register offset=0x90 size=2 [ R1L ];
+define register offset=0x92 size=2 [ R1H ];
+define register offset=0x94 size=1 [ R1E ];
+define register offset=0x90 size=4 [ R1HL ];
+define register offset=0x92 size=3 [ R1EH ];
 
 define register offset=0xA0 size=5 [ R2 ];
-define register offset=0xA0 size=1 [ R2E ];
-define register offset=0xA1 size=2 [ R2H ];
-define register offset=0xA3 size=2 [ R2L ];
-define register offset=0xA1 size=4 [ R2HL ];
-define register offset=0xA0 size=3 [ R2EH ];
+define register offset=0xA0 size=2 [ R2L ];
+define register offset=0xA2 size=2 [ R2H ];
+define register offset=0xA4 size=1 [ R2E ];
+define register offset=0xA0 size=4 [ R2HL ];
+define register offset=0xA2 size=3 [ R2EH ];
 
 define register offset=0xB0 size=5 [ R3 ];
-define register offset=0xB0 size=1 [ R3E ];
-define register offset=0xB1 size=2 [ R3H ];
-define register offset=0xB3 size=2 [ R3L ];
-define register offset=0xB1 size=4 [ R3HL ];
-define register offset=0xB0 size=3 [ R3EH ];
+define register offset=0xB0 size=2 [ R3L ];
+define register offset=0xB2 size=2 [ R3H ];
+define register offset=0xB4 size=1 [ R3E ];
+define register offset=0xB0 size=4 [ R3HL ];
+define register offset=0xB2 size=3 [ R3EH ];
 
 define register offset=0xC0 size=5 [ R4 ];
-define register offset=0xC0 size=1 [ R4E ];
-define register offset=0xC1 size=2 [ R4H ];
-define register offset=0xC3 size=2 [ R4L ];
-define register offset=0xC1 size=4 [ R4HL ];
-define register offset=0xC0 size=3 [ R4EH ];
+define register offset=0xC0 size=2 [ R4L ];
+define register offset=0xC2 size=2 [ R4H ];
+define register offset=0xC4 size=1 [ R4E ];
+define register offset=0xC0 size=4 [ R4HL ];
+define register offset=0xC2 size=3 [ R4EH ];
 
 define register offset=0xD0 size=5 [ R5 ];
-define register offset=0xD0 size=1 [ R5E ];
-define register offset=0xD1 size=2 [ R5H ];
-define register offset=0xD3 size=2 [ R5L ];
-define register offset=0xD1 size=4 [ R5HL ];
-define register offset=0xD0 size=3 [ R5EH ];
+define register offset=0xD0 size=2 [ R5L ];
+define register offset=0xD2 size=2 [ R5H ];
+define register offset=0xD4 size=1 [ R5E ];
+define register offset=0xD0 size=4 [ R5HL ];
+define register offset=0xD2 size=3 [ R5EH ];
 
 define register offset=0xE0 size=5 [ R6 ];
-define register offset=0xE0 size=1 [ R6E ];
-define register offset=0xE1 size=2 [ R6H ];
-define register offset=0xE3 size=2 [ R6L ];
-define register offset=0xE1 size=4 [ R6HL ];
-define register offset=0xE0 size=3 [ R6EH ];
+define register offset=0xE0 size=2 [ R6L ];
+define register offset=0xE2 size=2 [ R6H ];
+define register offset=0xE4 size=1 [ R6E ];
+define register offset=0xE0 size=4 [ R6HL ];
+define register offset=0xE2 size=3 [ R6EH ];
 
 define register offset=0xF0 size=5 [ R7 ];
-define register offset=0xF0 size=1 [ R7E ];
-define register offset=0xF1 size=2 [ R7H ];
-define register offset=0xF3 size=2 [ R7L ];
-define register offset=0xF1 size=4 [ R7HL ];
-define register offset=0xF0 size=3 [ R7EH ];
+define register offset=0xF0 size=2 [ R7L ];
+define register offset=0xF2 size=2 [ R7H ];
+define register offset=0xF4 size=1 [ R7E ];
+define register offset=0xF0 size=4 [ R7HL ];
+define register offset=0xF2 size=3 [ R7EH ];
 
 # U13116EJ2V0UM00.pdf, Table A-1. Formats of Instruction Words
 # For the sake of simplification trinomial instructions use op0/op1/op2 instead of op1/op2/op3,
