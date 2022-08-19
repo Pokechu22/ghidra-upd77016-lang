@@ -263,44 +263,72 @@ form3opp:op2 "=" "LT("^op0, op1^")" is op0 & opcode=0 & op1 & op2 {
 # ro = rh * rh'
 # MPY (Binomial operation): Multiply
 form3opc:"MPY" is opcode=1 {}
-form3opp:op2 "=" op0h "*" op1h is op0h & opcode=1 & op1h & op2 unimpl
+form3opp:op2 "=" op0h "*" op1h is op0h & opcode=1 & op1h & op2 {
+	a:4 = sext(op0h);
+	b:4 = sext(op1h);
+	op2 = sext(a * b);
+}
 
 # op3 = op3 + op1h*op2h
 # ro = ro + rh * rh'
 # MADD (Trinomial operation): Multiply add
 # Note: Ghidra doesn't allow you to use op2 twice in the operands, op2_dupe works around that
 form3opc:"MADD" is opcode=2 {}
-form3opp:op2 "=" op2_dupe "+" op0h "*" op1h is op0h & opcode=2 & op1h & op2 & op2_dupe unimpl
+form3opp:op2 "=" op2_dupe "+" op0h "*" op1h is op0h & opcode=2 & op1h & op2 & op2_dupe {
+	a:4 = sext(op0h);
+	b:4 = sext(op1h);
+	op2 = op2 + sext(a * b);
+}
 
 # op3 = op3 – op1h*op2h
 # ro = ro – rh * rh'
 # MSUB (Trinomial operation): Multiply sub
 form3opc:"MSUB" is opcode=3 {}
-form3opp:op2 "=" op2_dupe "-" op0h "*" op1h is op0h & opcode=3 & op1h & op2 & op2_dupe unimpl
+form3opp:op2 "=" op2_dupe "-" op0h "*" op1h is op0h & opcode=3 & op1h & op2 & op2_dupe {
+	a:4 = sext(op0h);
+	b:4 = sext(op1h);
+	op2 = op2 - sext(a * b);
+}
 
 # op3 = op3 + op1h*op2l
 # ro = ro + rh * rl
 # SUMA (Trinomial operation): Sign unsign multiply add
 form3opc:"SUMA" is opcode=4 {}
-form3opp:op2 "=" op2_dupe "+" op0h "*" op1l is op0h & opcode=4 & op1l & op2 & op2_dupe unimpl
+form3opp:op2 "=" op2_dupe "+" op0h "*" op1l is op0h & opcode=4 & op1l & op2 & op2_dupe {
+	a:4 = sext(op0h);
+	b:4 = zext(op1l);
+	op2 = op2 + sext(a * b);
+}
 
 # op3 = op3 + op1l*op2l
 # ro = ro + rl * rl'
 # UUMA (Trinomial operation): Unsign unsign multiply add
 form3opc:"UUMA" is opcode=5 {}
-form3opp:op2 "=" op2_dupe "+" op0l "*" op1l is op0l & opcode=5 & op1l & op2 & op2_dupe unimpl
+form3opp:op2 "=" op2_dupe "+" op0l "*" op1l is op0l & opcode=5 & op1l & op2 & op2_dupe {
+	a:4 = zext(op0l);
+	b:4 = zext(op1l);
+	op2 = op2 + zext(a * b);
+}
 
 # op3 = op3 >> 1 + op1h*op2h
 # ro = (ro >> 1) + rh * rh'
 # MAS1 (Trinomial operation): 1-bit shift multiply add
 form3opc:"MAS1" is opcode=6 {}
-form3opp:op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is op0h & opcode=6 & op1h & op2 & op2_dupe unimpl
+form3opp:op2 "=" "("^op2_dupe ">> 1)" "+" op0h "*" op1h is op0h & opcode=6 & op1h & op2 & op2_dupe {
+	a:4 = sext(op0h);
+	b:4 = sext(op1h);
+	op2 = (op2 s>> 1) + sext(a * b);
+}
 
 # op3 = op3 >> 16 + op1h*op2h
 # ro = (ro >> 16) + rh * rh'
 # MAS16 (Trinomial operation): 16-bit shift multiply add
 form3opc:"MAS16" is opcode=7 {}
-form3opp:op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode=7 & op1h & op2 & op2_dupe unimpl
+form3opp:op2 "=" "("^op2_dupe ">> 16)" "+" op0h "*" op1h is op0h & opcode=7 & op1h & op2 & op2_dupe {
+	a:4 = sext(op0h);
+	b:4 = sext(op1h);
+	op2 = (op2 s>> 16) + sext(a * b);
+}
 
 # op3 = op1 + op2
 # ro'' = ro + ro'
@@ -473,11 +501,14 @@ form2opp:op2 "=" "ROUND("^op1^")" is opcode=8 & op1 & op2 {
 	<done>
 }
 
+define pcodeop exp;
 # op2 = exp (op1)
 # ro' = EXP (ro)
 # EXP (Monomial operation): Exponent
 form2opc:"EXP" is opcode=9 {}
-form2opp:op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 unimpl
+form2opp:op2 "=" "EXP("^op1^")" is opcode=9 & op1 & op2 {
+	op2 = exp(op1);
+}
 
 # opcode=10 and opcode=11 assumed to be skipped
 
@@ -489,11 +520,14 @@ form2opp:op2 "=" op1 is opcode=12 & op1 & op2 {
 	op2 = op1;
 }
 
+define pcodeop divideonebit;
 # op2 / = op1
 # ro' / = ro
 # DIV (Monomial operation): Divide (1 bit)
 form2opc:"DIV" is opcode=13 {}
-form2opp:op2 "/ =" op1 is opcode=13 & op1 & op2 unimpl
+form2opp:op2 "/ =" op1 is opcode=13 & op1 & op2 {
+	op2 = divideonebit(op2, op1);
+}
 
 # op2 + = op1
 # ro' + = ro
