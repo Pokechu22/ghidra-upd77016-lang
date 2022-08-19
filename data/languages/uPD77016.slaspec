@@ -413,7 +413,12 @@ form2opp:op2 "=" op1 "-" "1" is opcode=3 & op1 & op2 {
 # ABS (Monomial operation): Absolute value
 form2opc:"ABS" is opcode=4 {}
 form2opp:op2 "=" "ABS("^op1^")" is opcode=4 & op1 & op2 {
-	op2 = abs(op1);
+	if (op1 s>= 0) goto <nonnegative>;
+	op2 = -op1;
+	goto <done>;
+	<nonnegative>
+	op2 = op1;
+	<done>
 }
 
 # op2 = ~op1
