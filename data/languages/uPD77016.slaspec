@@ -150,12 +150,12 @@ define token opbyte (32)
 	dp = (17, 19)
 
 	source1 = (23, 25)
-	flag_22 = (22, 22)
-	dest1 = (17, 21)
-	flag_16 = (16, 16)
+	flag_sys = (22, 22)
+	dest1 = (17, 22)
+	flag_dir = (16, 16)
 
 	dest2 = (23, 25)
-	source2 = (17, 21)
+	source2 = (17, 22)
 
 	flag_25 = (25, 25)
 	relative_addr = (7, 22)
@@ -205,16 +205,26 @@ attach variables [ rege  regxe  regye                                  ] [ R0E  
 attach variables [ regeh regxeh regyeh                                 ] [ R0EH R1EH R2EH R3EH R4EH R5EH R6EH R7EH ];
 attach variables [                                              top_hl ] [ R0HL R1HL R2HL R3HL R4HL R5HL R6HL R7HL ];
 
-# Note: sr the following registers are labeled as unconditional and only appear in A-5.
-# A-6 gives an extra bit for dest1, but that would require 32 underscores here, so we ignore that.
-# lc is labeled as source2 only, as well.
+# Note: From disassembly it looks like the A-5 "conditional" registers are the regular pointer registers
+# and the "unconditional" registers are the system ones.  This means that bit 22 can be considered part of
+# the register (as sort of implied by the dotted line in A-5 and A-6), and it's just that system registers
+# do not allow conditional moves.  Of course any "conditional" instruction can be made unconditional by
+# setting the conditional clause to IF (TRUE).
+# Also that set immediate in A-6 probably doesn't allow set immediate on the system registers.
+# DMY is reg 0x24, not 0x11, which makes sense as Y memory is associated with DP4-7/DN4-7.
+# Order of the system registers still unclear.  My binary only includes 0x20, 0x21, 0x22 and 0x26.
+# From context 0x20 is obviously SR, 0x21 probably EIR, and 0x22 probably STK. 0x26 is unclear.
 attach variables [ dest1 source2 ] [
 	# Conditional
-	DP0 DP1 DP2 DP3 DP4 DP5 DP6 DP7
-	DN0 DN1 DN2 DN3 DN4 DN5 DN6 DN7
-	DMX DMY
+	DP0  DP1  DP2  DP3  DP4  DP5  DP6  DP7
+	DN0  DN1  DN2  DN3  DN4  DN5  DN6  DN7
+	DMX  _    _    _    DMY  _    _    _
+	_    _    _    _    _    _    _    _
 	# Unconditional
-	SR EIR STK SP LC LSP LSR1 LSR2 LSR3 ESR _ _ _ _
+	SR   EIR  STK  SP   LC   LSP  LSR1 LSR2
+	LSR3 ESR  _    _    _    _    _    _
+	_    _    _    _    _    _    _    _
+	_    _    _    _    _    _    _    _
 ];
 
 BranchAddr: rel is relative_addr [ rel = inst_start + relative_addr; ] { export *[inst]:1 rel; }
@@ -766,10 +776,10 @@ loadstoreopp:reg "=" DP^"##" imm is suf=0b111 & reg & DP & d=1 & imm { reg = sex
 
 # dest = rl OR rl = source
 # MOV (Inter-register transfer): Inter-register transfer
-interopp:dest1 "=" source1 is source1 & dest1 & flag_16=0 {
+interopp:dest1 "=" source1 is source1 & dest1 & flag_dir=0 {
 	dest1 = source1;
 }
-interopp:dest2 "=" source2 is source2 & dest2 & flag_16=1 {
+interopp:dest2 "=" source2 is source2 & dest2 & flag_dir=1 {
 	dest2 = source2;
 }
 
@@ -780,10 +790,10 @@ interopp:dest2 "=" source2 is source2 & dest2 & flag_16=1 {
 
 # dest = imm
 # LDI (Immediate value set): Immediate value set
-immsetopp:dest1 "=" imm is dest1 & imm & flag_16=0 {
+immsetopp:dest1 "=" imm is dest1 & imm & flag_dir=0 & flag_sys=0 {
 	dest1 = imm;
 }
-immsetopp:dest2 "=" imm is dest2 & imm & flag_16=1 {
+immsetopp:dest2 "=" imm is dest2 & imm & flag_dir=1 & flag_sys=0 {
 	dest2 = imm;
 }
 
@@ -1035,9 +1045,9 @@ loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrap
 :^loadstoreopc loadstoreopp loopjumpback is fixed_4=4 & loadstoreopc & loadstoreopp & loopjumpback { build loadstoreopp; build loopjumpback; }
 
 # Figure A-5. Inter-Register Transfer Instruction Format
-:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=1 & interopp & loopjumpback { build interopp; build loopjumpback; }
-:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & cond=0 & loopjumpback { build interopp; build loopjumpback; }
-:"IF+MOV" condition interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_22=0 & interopp & condition & loopjumpback {
+:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_sys=1 & interopp & loopjumpback { build interopp; build loopjumpback; }
+:"MOV" interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_sys=0 & interopp & cond=0 & loopjumpback { build interopp; build loopjumpback; }
+:"IF+MOV" condition interopp loopjumpback is fixed_4=3 & opcode_2=3 & flag_sys=0 & interopp & condition & loopjumpback {
 	if (!condition) goto <done>;
 	build interopp;
 	<done>
