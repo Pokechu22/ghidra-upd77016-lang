@@ -221,8 +221,8 @@ attach variables [ dest1 source2 ] [
 	DMX  _    _    _    DMY  _    _    _
 	_    _    _    _    _    _    _    _
 	# Unconditional
-	SR   EIR  STK  SP   LC   LSP  LSR1 LSR2
-	LSR3 ESR  _    _    _    _    _    _
+	SR   EIR  STK  SP   LSR1 LSR2 LSR3 LSP
+	_    _    _    _    ESR  _    _    LC
 	_    _    _    _    _    _    _    _
 	_    _    _    _    _    _    _    _
 ];
