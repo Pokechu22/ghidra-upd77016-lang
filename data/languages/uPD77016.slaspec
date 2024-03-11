@@ -207,13 +207,16 @@ attach variables [                                              top_hl ] [ R0HL 
 
 # Note: From disassembly it looks like the A-5 "conditional" registers are the regular pointer registers
 # and the "unconditional" registers are the system ones.  This means that bit 22 can be considered part of
-# the register (as sort of implied by the dotted line in A-5 and A-6), and it's just that system registers
-# do not allow conditional moves.  Of course any "conditional" instruction can be made unconditional by
-# setting the conditional clause to IF (TRUE).
+# the register (as sort of implied by the dotted line in A-5 and the wider entry and lack of a line in A-6),
+# and it's just that system registers do not allow conditional moves.  Of course any "conditional" instruction
+# can be made unconditional by setting the conditional clause to IF (TRUE).
 # Also that set immediate in A-6 probably doesn't allow set immediate on the system registers.
-# DMY is reg 0x24, not 0x11, which makes sense as Y memory is associated with DP4-7/DN4-7.
-# Order of the system registers still unclear.  My binary only includes 0x20, 0x21, 0x22 and 0x26.
+# DMY is reg 0x14, not 0x11, which makes sense as Y memory is associated with DP4-7/DN4-7.
+# Order of the system registers still unclear.  The firmware from RNSE model 192 SD card and MP3 decoder DSP
+# only includes 0x20, 0x21, 0x22 and 0x26.
 # From context 0x20 is obviously SR, 0x21 probably EIR, and 0x22 probably STK. 0x26 is unclear.
+# Experimentation at https://github.com/Pokechu22/ghidra-upd77016-lang/issues/1#issuecomment-1981352312
+# a bigger list of unconditional registers.
 attach variables [ dest1 source2 ] [
 	# Conditional
 	DP0  DP1  DP2  DP3  DP4  DP5  DP6  DP7
